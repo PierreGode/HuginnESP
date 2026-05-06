@@ -98,7 +98,6 @@ class ScanCallbacks : public NimBLEAdvertisedDeviceCallbacks {
         // ---- Filtered mode: only output Flipper / AirTag ----
         if (s_mode == BLE_MODE_FILTERED) {
             if (flipper) {
-                static int airtagCount = 0; // reused below for airtag
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";

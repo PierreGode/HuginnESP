@@ -2,7 +2,7 @@
 
 Custom firmware for **Waveshare ESP32-S3 Smart 86 Box** (4" 480×480 RGB touch display, ESP32-S3, WiFi 2.4 GHz + BLE 5).
 
-Designed to integrate with Ragnar's wardriving engine via USB serial (115 200 baud).
+Designed to integrate with Ragnar's wardriving engine via USB serial (115200 baud).
 
 ---
 

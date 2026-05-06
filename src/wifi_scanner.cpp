@@ -101,13 +101,13 @@ void wifi_scanner_check_pineapple() {
     wifi_scanner_process();
 
     // Check for duplicate SSIDs with different BSSIDs
-    for (auto& pair : s_ssidMap) {
+    for (const auto& pair : s_ssidMap) {
         if (pair.second.size() > 1) {
             for (size_t i = 0; i < pair.second.size(); i++) {
                 Serial.printf("Pineapple detected: %s\n", pair.first.c_str());
                 Serial.printf("BSSID: %s\n", pair.second[i].c_str());
                 // Find channel for this BSSID
-                for (auto& net : s_networks) {
+                for (const auto& net : s_networks) {
                     if (net.bssid == pair.second[i]) {
                         Serial.printf("Channel: %d\n", net.channel);
                         break;

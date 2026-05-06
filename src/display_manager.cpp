@@ -207,11 +207,11 @@ static void drawAlerts() {
         AlertEntry& a = s_alerts[idx];
         uint32_t col = COL_TEXT;
         const char* icon = "";
-        if (strcmp(a.type, "flipper") == 0)   { col = COL_FLIPPER;   icon = "[F] "; }
-        if (strcmp(a.type, "airtag") == 0)    { col = COL_AIRTAG;    icon = "[A] "; }
-        if (strcmp(a.type, "skimmer") == 0)   { col = COL_SKIMMER;   icon = "[S] "; }
-        if (strcmp(a.type, "pineapple") == 0) { col = COL_PINEAPPLE; icon = "[P] "; }
-        if (strcmp(a.type, "spam") == 0)      { col = COL_SPAM;      icon = "[!] "; }
+        if (strcmp(a.type, "flipper") == 0)        { col = COL_FLIPPER;   icon = "[F] "; }
+        else if (strcmp(a.type, "airtag") == 0)    { col = COL_AIRTAG;    icon = "[A] "; }
+        else if (strcmp(a.type, "skimmer") == 0)   { col = COL_SKIMMER;   icon = "[S] "; }
+        else if (strcmp(a.type, "pineapple") == 0) { col = COL_PINEAPPLE; icon = "[P] "; }
+        else if (strcmp(a.type, "spam") == 0)      { col = COL_SPAM;      icon = "[!] "; }
 
         char line[64];
         snprintf(line, sizeof(line), "%s%s %ddBm", icon, a.mac, a.rssi);
