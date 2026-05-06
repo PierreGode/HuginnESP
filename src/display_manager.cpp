@@ -7,6 +7,8 @@
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+#include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
+#include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
 
 // =====================================================================
 //  LovyanGFX panel configuration for Waveshare ESP32-S3 Smart 86 Box
