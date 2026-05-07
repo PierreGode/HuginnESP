@@ -1,9 +1,12 @@
+#include "config.h"
+
+#if HUGINN_HAS_DISPLAY
+
 #include "display_manager.h"
 #include "serial_cmd.h"
 #include "wifi_scanner.h"
 #include "ble_scanner.h"
 #include "scan_cycle.h"
-#include "config.h"
 
 #include <Wire.h>
 #include <Arduino_GFX_Library.h>
@@ -410,3 +413,5 @@ void display_task(void* param) {
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
+
+#endif // HUGINN_HAS_DISPLAY
