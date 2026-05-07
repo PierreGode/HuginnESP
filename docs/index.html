@@ -12,7 +12,7 @@
     />
     <script
       type="module"
-      src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
+      src="https://unpkg.com/esp-web-tools@11/dist/web/install-button.js?module"
     ></script>
     <style>
       :root {
@@ -343,12 +343,13 @@
       <section class="ritual">
         <h2>The Binding</h2>
         <p>
-          Tether your ESP32-S3 by USB. Bid the raven enter, and choose its gate.
+          Tether your ESP32 by USB. Bid the raven enter, and the right gate
+          shall open of its own accord.
         </p>
 
         <div class="compat" role="note">
           <span class="compat-dot" aria-hidden="true"></span>
-          Only <strong>ESP32-S3</strong> vessels may be bound. Other chips will be turned away.
+          Vessels accepted: <strong>ESP32-S3</strong> &middot; <strong>ESP32-C5</strong>
         </div>
 
         <esp-web-install-button manifest="manifest.json">
@@ -368,7 +369,10 @@
 
       <footer class="skald">
         <div class="row">
-          Vessel: <code>Waveshare ESP32-S3-Touch-LCD-4B</code>
+          Vessels:
+          <code>Waveshare ESP32-S3-Touch-LCD-4B</code>
+          &middot;
+          <code>Waveshare ESP32-C5-WIFI6-KIT</code>
         </div>
         <div class="row">
           Forge mark: <code id="build">&mdash;</code>

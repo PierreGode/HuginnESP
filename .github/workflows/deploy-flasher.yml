@@ -38,27 +38,41 @@ jobs:
           python -m pip install --upgrade pip
           pip install platformio esptool
 
-      - name: Build firmware
+      - name: Build firmware (ESP32-S3)
         run: pio run -e esp32s3box
+
+      - name: Build firmware (ESP32-C5)
+        run: pio run -e esp32c5
 
       - name: Stage site
         run: |
           mkdir -p site/firmware
           cp -r docs/. site/
 
-          BUILD_DIR=.pio/build/esp32s3box
           BOOT_APP0=$(find ~/.platformio/packages -name boot_app0.bin | head -n 1)
           if [ -z "$BOOT_APP0" ]; then
             echo "boot_app0.bin not found"; exit 1
           fi
 
+          # ---- ESP32-S3 merged image ----
+          S3_DIR=.pio/build/esp32s3box
           python -m esptool --chip esp32s3 merge_bin \
             --output site/firmware/huginn-esp32s3.bin \
             --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            0x0000   "$BUILD_DIR/bootloader.bin" \
-            0x8000   "$BUILD_DIR/partitions.bin" \
+            0x0000   "$S3_DIR/bootloader.bin" \
+            0x8000   "$S3_DIR/partitions.bin" \
             0xe000   "$BOOT_APP0" \
-            0x10000  "$BUILD_DIR/firmware.bin"
+            0x10000  "$S3_DIR/firmware.bin"
+
+          # ---- ESP32-C5 merged image ----
+          C5_DIR=.pio/build/esp32c5
+          python -m esptool --chip esp32c5 merge_bin \
+            --output site/firmware/huginn-esp32c5.bin \
+            --flash_mode dio --flash_freq 80m --flash_size 16MB \
+            0x0000   "$C5_DIR/bootloader.bin" \
+            0x8000   "$C5_DIR/partitions.bin" \
+            0xe000   "$BOOT_APP0" \
+            0x10000  "$C5_DIR/firmware.bin"
 
           VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
           echo "Version: $VERSION"

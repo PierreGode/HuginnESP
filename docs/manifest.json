@@ -9,6 +9,12 @@
       "parts": [
         { "path": "firmware/huginn-esp32s3.bin", "offset": 0 }
       ]
+    },
+    {
+      "chipFamily": "ESP32-C5",
+      "parts": [
+        { "path": "firmware/huginn-esp32c5.bin", "offset": 0 }
+      ]
     }
   ]
 }
