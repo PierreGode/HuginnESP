@@ -98,16 +98,41 @@ void wifi_scanner_check_pineapple() {
     }
     wifi_scanner_process();
 
-    // Check for duplicate SSIDs with different BSSIDs
+    // Check for suspicious duplicate SSIDs — not just any mesh/repeater setup.
+    // A real pineapple/evil-twin is indicated by:
+    //   1. Same SSID but MIXED security (e.g. one Open + one WPA2)
+    //   2. Same SSID with an Open AP cloning a known encrypted network
+    // Normal mesh/repeater setups share SSID + same security = NOT suspicious.
     for (const auto& pair : s_ssidMap) {
-        if (pair.second.size() > 1) {
+        if (pair.second.size() <= 1) continue;
+        if (pair.first.length() == 0) continue; // skip hidden SSIDs
+
+        // Collect security types for this SSID across all BSSIDs
+        bool hasOpen = false;
+        bool hasEncrypted = false;
+        for (const auto& bssid : pair.second) {
+            for (const auto& net : s_networks) {
+                if (net.bssid == bssid) {
+                    if (String(net.security) == "Open") {
+                        hasOpen = true;
+                    } else {
+                        hasEncrypted = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Only alert if there's a mix of Open + Encrypted for the same SSID
+        // This is the hallmark of an evil-twin / pineapple attack
+        if (hasOpen && hasEncrypted) {
             for (size_t i = 0; i < pair.second.size(); i++) {
                 Serial.printf("Pineapple detected: %s\n", pair.first.c_str());
                 Serial.printf("BSSID: %s\n", pair.second[i].c_str());
-                // Find channel for this BSSID
                 for (const auto& net : s_networks) {
                     if (net.bssid == pair.second[i]) {
                         Serial.printf("Channel: %d\n", net.channel);
+                        Serial.printf("Security: %s\n", net.security.c_str());
                         break;
                     }
                 }
