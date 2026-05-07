@@ -57,17 +57,10 @@ void wifi_scanner_process() {
         net.security = authModeStr(WiFi.encryptionType(i));
         s_networks.push_back(net);
 
-        // Print multi-line format for Ragnar
-        Serial.printf("[%d] SSID: %s,\n", i + 1, net.ssid.c_str());
-        Serial.printf("     BSSID: %s,\n", net.bssid.c_str());
-        Serial.printf("     RSSI: %d,\n", net.rssi);
-        Serial.printf("     Channel: %d,\n", net.channel);
-        Serial.printf("     Band: 2.4GHz,\n");
-        Serial.printf("     Security: %s\n", net.security.c_str());
-
-        // Also emit JSON line for alternative parsing
+        // JSON output for Ragnar parser
         Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
                       net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
+        Serial.flush();
 
         // Track for evil-twin detection
         s_ssidMap[net.ssid].push_back(net.bssid);

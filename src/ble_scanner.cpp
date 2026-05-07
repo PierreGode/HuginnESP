@@ -140,8 +140,9 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
 
         // ---- All mode: output everything ----
         if (s_mode == BLE_MODE_ALL) {
-            Serial.printf("MAC: %s, Name: %s, RSSI: %d\n", mac.c_str(),
-                          name.length() > 0 ? name.c_str() : "(unknown)", rssi);
+            Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d}\n",
+                          mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi);
+            Serial.flush();
 
             if (flipper) {
                 s_flipperCount++;
