@@ -25,5 +25,8 @@ void ble_scanner_init();
 void ble_scanner_start(BleMode mode);
 void ble_scanner_stop();
 int  ble_scanner_count();
+int  ble_scanner_flipper_count();
+int  ble_scanner_airtag_count();
+int  ble_scanner_skimmer_count();
 
 #endif // BLE_SCANNER_H

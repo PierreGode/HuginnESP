@@ -7,6 +7,9 @@
 
 static BleMode s_mode = BLE_MODE_OFF;
 static int s_bleCount = 0;
+static int s_flipperCount = 0;
+static int s_airtagCount = 0;
+static int s_skimmerCount = 0;
 static BLEScan* s_pScan = nullptr;
 
 // Spam detection: MAC -> ad count within window
@@ -98,6 +101,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         // ---- Filtered mode: only output Flipper / AirTag ----
         if (s_mode == BLE_MODE_FILTERED) {
             if (flipper) {
+                s_flipperCount++;
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";
@@ -108,6 +112,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
                 Serial.printf("RSSI: %d\n", rssi);
             }
             if (airtag) {
+                s_airtagCount++;
                 static int tagNum = 0;
                 tagNum++;
                 Serial.println("AirTag found!");
@@ -122,6 +127,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         // ---- Skimmer mode ----
         if (s_mode == BLE_MODE_SKIMMER) {
             if (skimmer) {
+                s_skimmerCount++;
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());
@@ -138,6 +144,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
                           name.length() > 0 ? name.c_str() : "(unknown)", rssi);
 
             if (flipper) {
+                s_flipperCount++;
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";
@@ -147,6 +154,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
                 Serial.printf("RSSI: %d\n", rssi);
             }
             if (airtag) {
+                s_airtagCount++;
                 static int tagAll = 0;
                 tagAll++;
                 Serial.println("AirTag found!");
@@ -155,6 +163,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
                 Serial.printf("RSSI: %d\n", rssi);
             }
             if (skimmer) {
+                s_skimmerCount++;
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());
@@ -181,6 +190,9 @@ void ble_scanner_start(BleMode mode) {
     if (s_mode != BLE_MODE_OFF) ble_scanner_stop();
     s_mode = mode;
     s_bleCount = 0;
+    s_flipperCount = 0;
+    s_airtagCount = 0;
+    s_skimmerCount = 0;
     s_adCounts.clear();
     s_spamWindowStart = millis();
     s_pScan->clearResults();
@@ -196,4 +208,16 @@ void ble_scanner_stop() {
 
 int ble_scanner_count() {
     return s_bleCount;
+}
+
+int ble_scanner_flipper_count() {
+    return s_flipperCount;
+}
+
+int ble_scanner_airtag_count() {
+    return s_airtagCount;
+}
+
+int ble_scanner_skimmer_count() {
+    return s_skimmerCount;
 }

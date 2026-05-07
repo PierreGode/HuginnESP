@@ -88,6 +88,11 @@ int wifi_scanner_count() {
     return s_lastCount;
 }
 
+const WifiNetwork* wifi_scanner_get_networks(int& count) {
+    count = (int)s_networks.size();
+    return count > 0 ? s_networks.data() : nullptr;
+}
+
 void wifi_scanner_check_pineapple() {
     // Run a fresh scan synchronously for pineapple check
     wifi_scanner_start();

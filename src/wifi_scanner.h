@@ -28,6 +28,9 @@ void wifi_scanner_stop();
 // Return the count of networks found in the last completed scan.
 int wifi_scanner_count();
 
+// Return pointer to internal network list and its size.
+const WifiNetwork* wifi_scanner_get_networks(int& count);
+
 // Pineapple / Evil-Twin detection across cached networks.
 void wifi_scanner_check_pineapple();
 
