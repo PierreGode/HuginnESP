@@ -3,7 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HuginnESP Web Flasher</title>
+    <title>HuginnESP — Web Flasher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
     <script
       type="module"
       src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
@@ -11,86 +17,334 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0b0d10;
-        --fg: #e6e6e6;
-        --muted: #8a8f98;
-        --accent: #6ea8ff;
-        --card: #14171c;
-        --border: #232831;
+        --bone: #e8e2d4;
+        --bone-dim: #a89e8b;
+        --ash: #6b6358;
+        --ink: #0a0908;
+        --pitch: #15110d;
+        --bronze: #c8a35d;
+        --bronze-dim: #8a6f3a;
+        --blood: #8b2626;
+        --rune: #d9b878;
       }
+
       * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+
       body {
-        margin: 0;
         min-height: 100vh;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-        background: var(--bg);
-        color: var(--fg);
-        display: grid;
-        place-items: center;
-        padding: 2rem 1rem;
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 300;
+        line-height: 1.6;
+        position: relative;
+        overflow-x: hidden;
       }
-      main {
+
+      /* atmospheric vignette */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at center top,
+          transparent 0%,
+          rgba(0, 0, 0, 0.55) 80%
+        );
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .page {
+        position: relative;
+        z-index: 2;
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 1.25rem 4rem;
+      }
+
+      /* hero */
+      .hero {
+        position: relative;
+        margin: 0 -1.25rem 2rem;
+        aspect-ratio: 16 / 9;
+        max-height: 420px;
+        overflow: hidden;
+        border-bottom: 1px solid rgba(200, 163, 93, 0.25);
+      }
+      .hero img {
         width: 100%;
-        max-width: 560px;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 2rem;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 30%;
+        filter: contrast(1.05) saturate(0.9);
       }
-      h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
-      p.lead { margin: 0 0 1.5rem; color: var(--muted); }
-      .actions { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
-      esp-web-install-button { --esp-tools-button-color: var(--accent); }
-      .meta {
-        margin-top: 1.5rem;
-        padding-top: 1.25rem;
-        border-top: 1px solid var(--border);
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(10, 9, 8, 0) 40%,
+          rgba(10, 9, 8, 0.7) 80%,
+          var(--ink) 100%
+        );
+      }
+
+      /* title block */
+      .title {
+        text-align: center;
+        margin-bottom: 2.5rem;
+      }
+      .runes {
+        font-family: "Cinzel", serif;
+        font-size: 1.1rem;
+        letter-spacing: 0.6em;
+        color: var(--rune);
+        opacity: 0.55;
+        margin-bottom: 0.75rem;
+        user-select: none;
+      }
+      h1 {
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+        font-size: clamp(2.2rem, 6vw, 3.2rem);
+        letter-spacing: 0.18em;
+        margin: 0 0 0.6rem;
+        color: var(--bone);
+        text-transform: uppercase;
+        text-shadow: 0 0 30px rgba(200, 163, 93, 0.15);
+      }
+      .kenning {
+        font-family: "Cinzel", serif;
+        font-style: italic;
+        font-weight: 500;
+        color: var(--bronze);
+        font-size: 0.95rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        margin: 0;
+      }
+      .verse {
+        margin-top: 1.25rem;
+        max-width: 38ch;
+        margin-left: auto;
+        margin-right: auto;
+        color: var(--bone-dim);
+        font-size: 0.98rem;
+      }
+
+      /* divider with rune */
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 2rem 0;
+        color: var(--bronze-dim);
+      }
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(200, 163, 93, 0.35),
+          transparent
+        );
+      }
+      .divider span {
+        font-family: "Cinzel", serif;
+        font-size: 1.5rem;
+        color: var(--rune);
+        opacity: 0.7;
+      }
+
+      /* ritual / install panel */
+      .ritual {
+        background: linear-gradient(
+          180deg,
+          rgba(21, 17, 13, 0.9) 0%,
+          rgba(10, 9, 8, 0.9) 100%
+        );
+        border: 1px solid rgba(200, 163, 93, 0.2);
+        border-radius: 4px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        position: relative;
+      }
+      .ritual::before,
+      .ritual::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border: 1px solid var(--bronze-dim);
+      }
+      .ritual::before {
+        top: -1px;
+        left: -1px;
+        border-right: none;
+        border-bottom: none;
+      }
+      .ritual::after {
+        bottom: -1px;
+        right: -1px;
+        border-left: none;
+        border-top: none;
+      }
+      .ritual h2 {
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-size: 1rem;
+        color: var(--bronze);
+        margin: 0 0 0.5rem;
+      }
+      .ritual p {
+        margin: 0 0 1.5rem;
+        color: var(--bone-dim);
+        font-size: 0.95rem;
+      }
+
+      /* the bind button */
+      button.bind {
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        font-size: 0.95rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--ink);
+        background: linear-gradient(
+          180deg,
+          var(--rune) 0%,
+          var(--bronze) 50%,
+          var(--bronze-dim) 100%
+        );
+        border: 1px solid var(--bronze-dim);
+        padding: 0.95rem 2.2rem;
+        cursor: pointer;
+        border-radius: 2px;
+        transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.5) inset,
+          0 8px 24px rgba(200, 163, 93, 0.12);
+      }
+      button.bind:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.1);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.5) inset,
+          0 10px 32px rgba(200, 163, 93, 0.25);
+      }
+      button.bind:active { transform: translateY(0); filter: brightness(0.95); }
+      button.warn {
+        font-family: "Cinzel", serif;
         font-size: 0.85rem;
-        color: var(--muted);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--blood);
+        background: transparent;
+        border: 1px solid var(--blood);
+        padding: 0.75rem 1.5rem;
+        cursor: not-allowed;
       }
-      .meta code { color: var(--fg); }
+
+      /* skald (footer-ish meta) */
+      .skald {
+        margin-top: 2.5rem;
+        text-align: center;
+        font-size: 0.82rem;
+        color: var(--ash);
+        letter-spacing: 0.05em;
+      }
+      .skald code {
+        font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+        color: var(--bone-dim);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.1rem 0.4rem;
+        border-radius: 2px;
+        font-size: 0.78rem;
+      }
+      .skald a { color: var(--bronze); text-decoration: none; }
+      .skald a:hover { text-decoration: underline; }
+      .skald .row { margin: 0.35rem 0; }
+
       .browser-warn {
         display: none;
-        margin-top: 1rem;
+        margin-top: 1.25rem;
         padding: 0.75rem 1rem;
-        background: #3a1f1f;
-        border: 1px solid #6b2e2e;
-        border-radius: 8px;
-        color: #f3c8c8;
-        font-size: 0.9rem;
+        background: rgba(139, 38, 38, 0.1);
+        border: 1px solid rgba(139, 38, 38, 0.4);
+        color: #d9a3a3;
+        font-size: 0.85rem;
+        text-align: center;
       }
-      a { color: var(--accent); }
+
+      @media (max-width: 480px) {
+        .hero { aspect-ratio: 4 / 3; }
+        h1 { letter-spacing: 0.12em; }
+        .ritual { padding: 1.5rem 1rem; }
+      }
     </style>
   </head>
   <body>
-    <main>
-      <h1>HuginnESP Web Flasher</h1>
-      <p class="lead">
-        Plug your ESP32-S3 board in via USB, click Connect, and select the serial port.
-      </p>
+    <div class="page">
+      <div class="hero">
+        <img src="img/huginn.png" alt="Huginn — the raven of thought" />
+      </div>
 
-      <div class="actions">
+      <header class="title">
+        <div class="runes" aria-hidden="true">ᚺᚢᚷᛁᚾᚾ</div>
+        <h1>HuginnESP</h1>
+        <p class="kenning">Raven of Thought · Bound in Silicon</p>
+        <p class="verse">
+          Two ravens fly each dawn from Odin's shoulder &mdash;
+          <em>Huginn</em>, thought, and <em>Muninn</em>, memory.
+          Bind one now to your vessel.
+        </p>
+      </header>
+
+      <div class="divider" aria-hidden="true">
+        <span>ᛟ</span>
+      </div>
+
+      <section class="ritual">
+        <h2>The Binding</h2>
+        <p>
+          Tether your ESP32-S3 by USB. Bid the raven enter, and choose its gate.
+        </p>
+
         <esp-web-install-button manifest="manifest.json">
-          <button slot="unsupported">
-            Your browser doesn't support Web Serial. Use Chrome, Edge, or Opera on desktop.
+          <button class="bind" slot="activate">Bind the Raven</button>
+          <button class="warn" slot="unsupported">
+            Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
           </button>
-          <button slot="not-allowed">
-            Web Serial requires HTTPS. Open this page over HTTPS.
+          <button class="warn" slot="not-allowed">
+            The runes require HTTPS to bind
           </button>
         </esp-web-install-button>
-      </div>
 
-      <div id="browserWarn" class="browser-warn">
-        Web Serial is only available in Chromium-based browsers (Chrome, Edge, Opera) on desktop.
-      </div>
+        <div id="browserWarn" class="browser-warn">
+          Web Serial is only spoken by Chromium-born browsers (Chrome, Edge, Opera) on desktop.
+        </div>
+      </section>
 
-      <div class="meta">
-        Board: <code>Waveshare ESP32-S3-Touch-LCD-4B</code> &middot;
-        Build: <code id="build">-</code>
-        <br />
-        Source: <a href="https://github.com/PierreGode/HuginnESP">github.com/PierreGode/HuginnESP</a>
-      </div>
-    </main>
+      <footer class="skald">
+        <div class="row">
+          Vessel: <code>Waveshare ESP32-S3-Touch-LCD-4B</code>
+        </div>
+        <div class="row">
+          Forge mark: <code id="build">&mdash;</code>
+        </div>
+        <div class="row" style="margin-top: 1rem;">
+          <a href="https://github.com/PierreGode/HuginnESP">github.com/PierreGode/HuginnESP</a>
+        </div>
+      </footer>
+    </div>
 
     <script>
       if (!("serial" in navigator)) {
