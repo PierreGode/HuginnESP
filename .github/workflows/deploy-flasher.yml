@@ -60,7 +60,13 @@ jobs:
             0xe000   "$BOOT_APP0" \
             0x10000  "$BUILD_DIR/firmware.bin"
 
-          echo "{\"build\":\"${GITHUB_SHA::7}\",\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > site/version.json
+          VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
+          echo "Version: $VERSION"
+
+          jq --arg v "$VERSION" '.version = $v' site/manifest.json > site/manifest.json.tmp
+          mv site/manifest.json.tmp site/manifest.json
+
+          echo "{\"build\":\"$VERSION\",\"sha\":\"${GITHUB_SHA::7}\",\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > site/version.json
 
       - uses: actions/configure-pages@v5
 
