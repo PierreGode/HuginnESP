@@ -1,5 +1,5 @@
 // =====================================================================
-//  Ragnar ESP32-S3 Scanner Firmware
+//  HuginnESP — Ragnar ESP32-S3 Scanner Firmware
 //  Board: Waveshare ESP32-S3-Touch-LCD-4B (N16R8, 4" 480×480 RGB touch)
 //
 //  Scans WiFi & BLE, detects Flipper Zero / AirTag / Skimmer /
@@ -8,50 +8,53 @@
 // =====================================================================
 
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEScan.h>
-#include <BLEAdvertisedDevice.h>
-
-static int deviceCount = 0;
-
-class MyCallbacks : public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice advertisedDevice) override {
-        deviceCount++;
-    }
-};
+#include "config.h"
+#include "display_manager.h"
+#include "ble_scanner.h"
+#include "wifi_scanner.h"
+#include "serial_cmd.h"
+#include "scan_cycle.h"
 
 void setup() {
-    Serial.begin(115200);
-    delay(3000);
-    Serial.println("[BOOT] === BLE Test (Arduino 3.x) ===");
+    Serial.begin(SERIAL_BAUD);
+    delay(2000);
+    Serial.println("[BOOT] HuginnESP starting...");
     Serial.printf("[BOOT] Free heap: %u\n", ESP.getFreeHeap());
-    Serial.printf("[BOOT] PSRAM size: %u\n", ESP.getPsramSize());
+    Serial.printf("[BOOT] PSRAM: %u\n", ESP.getPsramSize());
     Serial.flush();
 
-    Serial.println("[BLE] Initializing...");
-    Serial.flush();
-    BLEDevice::init("HuginnESP");
-    Serial.println("[BLE] Init done!");
+    // WiFi MUST init before display — WiFi ISR conflicts with RGB DMA cache
+    Serial.println("[BOOT] Init WiFi...");
+    wifi_scanner_init();
+    Serial.println("[BOOT] WiFi OK");
+
+    // Display
+    Serial.println("[BOOT] Init display...");
+    display_init();
+    Serial.println("[BOOT] Display OK");
+
+    // BLE
+    Serial.println("[BOOT] Init BLE...");
+    ble_scanner_init();
+    Serial.println("[BOOT] BLE OK");
+
+    // Serial command parser
+    serial_cmd_init();
+
+    // Scan cycle
+    scan_cycle_init();
+
+    Serial.printf("[BOOT] Free heap after init: %u\n", ESP.getFreeHeap());
     Serial.flush();
 
-    BLEScan* pScan = BLEDevice::getScan();
-    pScan->setAdvertisedDeviceCallbacks(new MyCallbacks(), false);
-    pScan->setActiveScan(true);
-    pScan->setInterval(100);
-    pScan->setWindow(99);
+    // Start FreeRTOS tasks
+    xTaskCreatePinnedToCore(scan_cycle_task, "scan_cycle", CYCLE_TASK_STACK, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(display_task,    "display",    DISPLAY_TASK_STACK, NULL, 1, NULL, 1);
 
-    Serial.println("[BLE] Starting 5s scan...");
-    Serial.flush();
-    deviceCount = 0;
-    pScan->start(5, false);
-    pScan->stop();
-    Serial.printf("[BLE] Scan done! Found %d devices\n", deviceCount);
-    Serial.printf("[BOOT] Free heap after BLE: %u\n", ESP.getFreeHeap());
-    Serial.flush();
+    Serial.println("[BOOT] All tasks started — entering main loop");
 }
 
 void loop() {
-    Serial.println("[LOOP] alive");
-    Serial.flush();
-    delay(5000);
+    serial_cmd_poll();
+    delay(10);
 }

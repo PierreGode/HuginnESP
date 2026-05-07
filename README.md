@@ -1,6 +1,6 @@
-# Ragnar ESP32-S3 Scanner Firmware
+# HuginnESP
 
-Custom firmware for **Waveshare ESP32-S3 Smart 86 Box** (4" 480×480 RGB touch display, ESP32-S3, WiFi 2.4 GHz + BLE 5).
+WiFi & BLE security scanner firmware for the **Waveshare ESP32-S3-Touch-LCD-4B** (ESP32-S3-WROOM-1-N16R8, 4" 480×480 RGB touch display, WiFi 2.4 GHz + BLE 5).
 
 Designed to integrate with Ragnar's wardriving engine via USB serial (115200 baud).
 
@@ -24,27 +24,46 @@ Designed to integrate with Ragnar's wardriving engine via USB serial (115200 bau
 
 | Parameter | Value |
 |---|---|
-| Board | Waveshare ESP32-S3 Smart 86 Box |
+| Board | Waveshare ESP32-S3-Touch-LCD-4B |
 | Display | 4" IPS, 480×480, RGB interface |
 | Touch | GT911 capacitive, 5-point, I2C |
 | MCU | ESP32-S3 (dual-core, WiFi + BLE 5) |
 | Flash | 16 MB |
 | PSRAM | 8 MB (OPI) |
 
-## Building
+## Prerequisites
 
-This is a [PlatformIO](https://platformio.org/) project.
+- [VS Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/install/ide?install=vscode)
+- USB-C cable connected to the **USB** port (native USB Serial/JTAG — not the UART port)
+
+## Build & Flash
+
+This is a [PlatformIO](https://platformio.org/) project using [pioarduino](https://github.com/pioarduino/platform-espressif32) (Arduino core 3.x / ESP-IDF 5.3). The platform is downloaded automatically on first build.
 
 ```bash
+# Clone
+git clone https://github.com/YOUR_USER/HuginnESP.git
+cd HuginnESP
+
 # Build
 pio run
 
-# Upload
-pio run --target upload
+# Upload (replace COM8 with your port)
+pio run --target upload --upload-port COM8
 
-# Monitor serial
-pio device monitor -b 115200
+# Monitor serial output
+pio device monitor --port COM8 --baud 115200
 ```
+
+Or build, upload, and monitor in one command:
+
+```bash
+pio run --target upload --upload-port COM8 --target monitor
+```
+
+> **Note:** After flashing, the USB port re-enumerates. The combined upload+monitor command handles this automatically.
+
+> **Why pioarduino?** The stock PlatformIO espressif32 platform ships Arduino core 2.x (ESP-IDF 4.4), which has broken BLE on ESP32-S3. pioarduino provides Arduino core 3.x with ESP-IDF 5.3 where BLE works correctly.
 
 ## Serial Commands (from Ragnar)
 
@@ -76,7 +95,7 @@ src/
 
 ```
 ┌──────────────────────────────────────────┐
-│            ESP32-S3 Smart 86 Box         │
+│       ESP32-S3-Touch-LCD-4B              │
 │                                          │
 │  ┌─────────┐  ┌──────────┐  ┌─────────┐ │
 │  │ WiFi    │  │ BLE      │  │ Display │ │
@@ -105,4 +124,4 @@ src/
 
 ## License
 
-See repository for license information.
+MIT

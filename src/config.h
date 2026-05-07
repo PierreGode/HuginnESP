@@ -23,7 +23,7 @@
 #define BLE_TASK_STACK    8192
 #define DISPLAY_TASK_STACK 8192
 #define SERIAL_TASK_STACK  4096
-#define CYCLE_TASK_STACK   4096
+#define CYCLE_TASK_STACK   8192
 
 // ----- Max tracked items -----
 #define MAX_DISPLAY_DEVICES 10

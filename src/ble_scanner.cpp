@@ -40,13 +40,13 @@ static bool isFlipperDevice(BLEAdvertisedDevice& dev, uint8_t& color) {
 // ---- AirTag detection ----
 static bool isAirTagDevice(BLEAdvertisedDevice& dev) {
     if (!dev.haveManufacturerData()) return false;
-    std::string mfr = dev.getManufacturerData();
-    if (mfr.size() < 2) return false;
+    String mfr = dev.getManufacturerData();
+    if (mfr.length() < 2) return false;
 
     uint16_t companyId = (uint16_t)(uint8_t)mfr[0] | ((uint16_t)(uint8_t)mfr[1] << 8);
     if (companyId != APPLE_COMPANY_ID) return false;
 
-    if (mfr.size() >= 3) {
+    if (mfr.length() >= 3) {
         uint8_t typeByte = (uint8_t)mfr[2];
         if (typeByte == 0x12 || typeByte == 0x07) {
             return true;
@@ -169,7 +169,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
 static ScanCallbacks s_callbacks;
 
 void ble_scanner_init() {
-    BLEDevice::init("RagnarScanner");
+    BLEDevice::init("HuginnESP");
     s_pScan = BLEDevice::getScan();
     s_pScan->setAdvertisedDeviceCallbacks(&s_callbacks, false);
     s_pScan->setActiveScan(true);

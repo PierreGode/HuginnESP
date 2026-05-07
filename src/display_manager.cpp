@@ -5,117 +5,41 @@
 #include "scan_cycle.h"
 #include "config.h"
 
-#define LGFX_USE_V1
-#include <LovyanGFX.hpp>
-#include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
-#include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
+#include <Wire.h>
+#include <Arduino_GFX_Library.h>
 
 // =====================================================================
-//  LovyanGFX panel configuration for Waveshare ESP32-S3 Smart 86 Box
-//  4" IPS 480×480 RGB interface + GT911 touch (I2C)
+//  Arduino_GFX display for Waveshare ESP32-S3-Touch-LCD-4B
+//  ST7701 480×480 RGB panel via TCA9554 I2C GPIO expander
 // =====================================================================
-class LGFX_WaveshareBox : public lgfx::LGFX_Device {
-    lgfx::Panel_RGB  _panel;
-    lgfx::Bus_RGB    _bus;
-    lgfx::Light_PWM  _light;
-    lgfx::Touch_GT911 _touch;
+static Arduino_XCA9554SWSPI *expander = new Arduino_XCA9554SWSPI(
+    7, 0, 2, 1, &Wire, 0x20);
 
-public:
-    LGFX_WaveshareBox() {
-        // ---- Bus (RGB) ----
-        {
-            auto cfg = _bus.config();
-            cfg.panel = &_panel;
+static Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
+    17 /*DE*/, 3 /*VSYNC*/, 46 /*HSYNC*/, 9 /*PCLK*/,
+    10 /*B0*/, 11 /*B1*/, 12 /*B2*/, 13 /*B3*/, 14 /*B4*/,
+    21 /*G0*/, 8 /*G1*/, 18 /*G2*/, 45 /*G3*/, 38 /*G4*/, 39 /*G5*/,
+    40 /*R0*/, 41 /*R1*/, 42 /*R2*/, 2 /*R3*/, 1 /*R4*/,
+    1, 10, 8, 50,   // hsync timing
+    1, 10, 8, 20);  // vsync timing
 
-            cfg.pin_d0  = GPIO_NUM_8;   // B0
-            cfg.pin_d1  = GPIO_NUM_3;   // B1
-            cfg.pin_d2  = GPIO_NUM_46;  // B2
-            cfg.pin_d3  = GPIO_NUM_9;   // B3
-            cfg.pin_d4  = GPIO_NUM_1;   // B4
+static Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
+    480, 480, rgbpanel, 0, true,
+    expander, GFX_NOT_DEFINED,
+    st7701_type1_init_operations, sizeof(st7701_type1_init_operations));
 
-            cfg.pin_d5  = GPIO_NUM_5;   // G0
-            cfg.pin_d6  = GPIO_NUM_6;   // G1
-            cfg.pin_d7  = GPIO_NUM_7;   // G2
-            cfg.pin_d8  = GPIO_NUM_15;  // G3
-            cfg.pin_d9  = GPIO_NUM_16;  // G4
-            cfg.pin_d10 = GPIO_NUM_4;   // G5
-
-            cfg.pin_d11 = GPIO_NUM_45;  // R0
-            cfg.pin_d12 = GPIO_NUM_48;  // R1
-            cfg.pin_d13 = GPIO_NUM_47;  // R2
-            cfg.pin_d14 = GPIO_NUM_21;  // R3
-            cfg.pin_d15 = GPIO_NUM_14;  // R4
-
-            cfg.pin_henable = GPIO_NUM_40;
-            cfg.pin_vsync   = GPIO_NUM_41;
-            cfg.pin_hsync   = GPIO_NUM_39;
-            cfg.pin_pclk    = GPIO_NUM_42;
-
-            cfg.freq_write = 12000000;
-            cfg.hsync_polarity    = 0;
-            cfg.hsync_front_porch = 8;
-            cfg.hsync_pulse_width = 4;
-            cfg.hsync_back_porch  = 16;
-            cfg.vsync_polarity    = 0;
-            cfg.vsync_front_porch = 4;
-            cfg.vsync_pulse_width = 4;
-            cfg.vsync_back_porch  = 4;
-            cfg.pclk_idle_high    = 1;
-
-            _bus.config(cfg);
-        }
-
-        // ---- Panel ----
-        {
-            auto cfg = _panel.config();
-            cfg.memory_width  = SCREEN_WIDTH;
-            cfg.memory_height = SCREEN_HEIGHT;
-            cfg.panel_width   = SCREEN_WIDTH;
-            cfg.panel_height  = SCREEN_HEIGHT;
-            cfg.offset_x = 0;
-            cfg.offset_y = 0;
-            _panel.config(cfg);
-        }
-
-        _panel.setBus(&_bus);
-
-        // ---- Backlight ----
-        {
-            auto cfg = _light.config();
-            cfg.pin_bl = GPIO_NUM_2;
-            cfg.invert = false;
-            cfg.freq   = 1000;
-            cfg.pwm_channel = 7;
-            _light.config(cfg);
-            _panel.setLight(&_light);
-        }
-
-        // ---- Touch (GT911) ----
-        {
-            auto cfg = _touch.config();
-            cfg.x_min = 0;
-            cfg.x_max = SCREEN_WIDTH - 1;
-            cfg.y_min = 0;
-            cfg.y_max = SCREEN_HEIGHT - 1;
-            cfg.pin_int  = GPIO_NUM_NC;
-            cfg.pin_rst  = GPIO_NUM_NC;
-            cfg.bus_shared = false;
-            cfg.offset_rotation = 0;
-            cfg.i2c_port = 0;
-            cfg.i2c_addr = 0x5D;
-            cfg.pin_sda  = GPIO_NUM_17;
-            cfg.pin_scl  = GPIO_NUM_18;
-            cfg.freq     = 400000;
-            _touch.config(cfg);
-            _panel.setTouch(&_touch);
-        }
-
-        setPanel(&_panel);
-    }
-};
-
-static LGFX_WaveshareBox* lcd_ptr = nullptr;
-#define lcd (*lcd_ptr)
+// ---- RGB565 colors ----
+static const uint16_t COL_BG        = 0x0000;  // black
+static const uint16_t COL_HEADER    = 0x1089;  // dark blue-grey
+static const uint16_t COL_TEXT      = 0xE71C;  // light grey
+static const uint16_t COL_ACCENT    = 0x07F1;  // green
+static const uint16_t COL_FLIPPER   = 0x449F;  // blue
+static const uint16_t COL_AIRTAG    = 0xFC40;  // orange
+static const uint16_t COL_SKIMMER   = 0xF800;  // red
+static const uint16_t COL_PINEAPPLE = 0xFE60;  // yellow
+static const uint16_t COL_SPAM      = 0xA23F;  // purple
+static const uint16_t COL_BTN       = 0x32CA;  // dark grey-blue
+static const uint16_t COL_BTN_ACT   = 0x0553;  // active green
 
 // ---- Alert ring buffer ----
 struct AlertEntry {
@@ -131,32 +55,19 @@ static int s_alertHead = 0;
 static int s_alertCount = 0;
 static SemaphoreHandle_t s_alertMutex = nullptr;
 
-// ---- Colors ----
-static const uint32_t COL_BG        = 0x000000;
-static const uint32_t COL_HEADER    = 0x1A1A2E;
-static const uint32_t COL_TEXT      = 0xE0E0E0;
-static const uint32_t COL_ACCENT    = 0x00FF88;
-static const uint32_t COL_FLIPPER   = 0x4488FF;
-static const uint32_t COL_AIRTAG    = 0xFF8800;
-static const uint32_t COL_SKIMMER   = 0xFF2222;
-static const uint32_t COL_PINEAPPLE = 0xFFCC00;
-static const uint32_t COL_SPAM      = 0xAA44FF;
-static const uint32_t COL_BTN       = 0x333355;
-static const uint32_t COL_BTN_ACT   = 0x00AA66;
-
 // ---- Button definitions ----
 struct Button {
-    int x, y, w, h;
+    int16_t x, y, w, h;
     const char* label;
     ScanMode mode;
 };
 
 static const Button BUTTONS[] = {
-    {  10, 400, 88, 36, "WiFi",  MODE_WIFI         },
-    { 103, 400, 88, 36, "BLE",   MODE_BLE_ALL      },
-    { 196, 400, 88, 36, "Flip",  MODE_BLE_FILTERED },
-    { 289, 400, 88, 36, "Stop",  MODE_IDLE          },
-    { 382, 400, 88, 36, "Auto",  MODE_AUTO_CYCLE    },
+    {  10, 430, 88, 40, "WiFi",  MODE_WIFI         },
+    { 103, 430, 88, 40, "BLE",   MODE_BLE_ALL      },
+    { 196, 430, 88, 40, "Flip",  MODE_BLE_FILTERED },
+    { 289, 430, 88, 40, "Stop",  MODE_IDLE          },
+    { 382, 430, 88, 40, "Auto",  MODE_AUTO_CYCLE    },
 };
 static const int NUM_BUTTONS = sizeof(BUTTONS) / sizeof(BUTTONS[0]);
 
@@ -170,19 +81,21 @@ static void uptimeStr(char* buf, size_t len) {
 
 // ---- Draw status bar ----
 static void drawStatusBar() {
-    lcd.fillRect(0, 0, SCREEN_WIDTH, 40, COL_HEADER);
+    gfx->fillRect(0, 0, SCREEN_WIDTH, 44, COL_HEADER);
 
     char buf[64];
-    snprintf(buf, sizeof(buf), "WiFi:%d  BLE:%d  Mode:%s",
+    snprintf(buf, sizeof(buf), "WiFi:%d BLE:%d %s",
              wifi_scanner_count(), ble_scanner_count(),
              scanModeName(g_currentMode));
-    lcd.setTextColor(COL_ACCENT, COL_HEADER);
-    lcd.setTextSize(1);
-    lcd.drawString(buf, 10, 12);
+    gfx->setTextColor(COL_ACCENT);
+    gfx->setTextSize(2);
+    gfx->setCursor(10, 12);
+    gfx->print(buf);
 
     char up[16];
     uptimeStr(up, sizeof(up));
-    lcd.drawString(up, SCREEN_WIDTH - 80, 12);
+    gfx->setCursor(SCREEN_WIDTH - 110, 12);
+    gfx->print(up);
 }
 
 // ---- Draw buttons ----
@@ -190,25 +103,31 @@ static void drawButtons() {
     for (int i = 0; i < NUM_BUTTONS; i++) {
         const Button& b = BUTTONS[i];
         bool active = (g_currentMode == b.mode);
-        uint32_t col = active ? COL_BTN_ACT : COL_BTN;
-        lcd.fillRoundRect(b.x, b.y, b.w, b.h, 6, col);
-        lcd.setTextColor(COL_TEXT, col);
-        lcd.drawCenterString(b.label, b.x + b.w / 2, b.y + 10);
+        uint16_t col = active ? COL_BTN_ACT : COL_BTN;
+        gfx->fillRoundRect(b.x, b.y, b.w, b.h, 6, col);
+        gfx->setTextColor(COL_TEXT);
+        gfx->setTextSize(2);
+        int16_t tx = b.x + (b.w - strlen(b.label) * 12) / 2;
+        int16_t ty = b.y + 12;
+        gfx->setCursor(tx, ty);
+        gfx->print(b.label);
     }
 }
 
 // ---- Draw alert panel ----
 static void drawAlerts() {
-    lcd.fillRect(0, 240, SCREEN_WIDTH, 155, COL_BG);
-    lcd.setTextColor(COL_TEXT, COL_BG);
-    lcd.drawString("-- Alerts --", 10, 245);
+    gfx->fillRect(0, 240, SCREEN_WIDTH, 185, COL_BG);
+    gfx->setTextColor(COL_TEXT);
+    gfx->setTextSize(2);
+    gfx->setCursor(10, 245);
+    gfx->print("-- Alerts --");
 
     if (s_alertMutex) xSemaphoreTake(s_alertMutex, portMAX_DELAY);
     int count = min(s_alertCount, MAX_ALERTS);
     for (int i = 0; i < count; i++) {
         int idx = (s_alertHead - count + i + MAX_ALERTS) % MAX_ALERTS;
         AlertEntry& a = s_alerts[idx];
-        uint32_t col = COL_TEXT;
+        uint16_t col = COL_TEXT;
         const char* icon = "";
         if (strcmp(a.type, "flipper") == 0)        { col = COL_FLIPPER;   icon = "[F] "; }
         else if (strcmp(a.type, "airtag") == 0)    { col = COL_AIRTAG;    icon = "[A] "; }
@@ -218,62 +137,17 @@ static void drawAlerts() {
 
         char line[64];
         snprintf(line, sizeof(line), "%s%s %ddBm", icon, a.mac, a.rssi);
-        lcd.setTextColor(col, COL_BG);
-        lcd.drawString(line, 10, 260 + i * 18);
+        gfx->setTextColor(col);
+        gfx->setCursor(10, 268 + i * 20);
+        gfx->print(line);
     }
     if (s_alertMutex) xSemaphoreGive(s_alertMutex);
 }
 
-// ---- Touch handling ----
-static void handleTouch() {
-    lgfx::touch_point_t tp;
-    if (!lcd.getTouch(&tp)) return;
-
-    for (int i = 0; i < NUM_BUTTONS; i++) {
-        const Button& b = BUTTONS[i];
-        if (tp.x >= b.x && tp.x <= b.x + b.w &&
-            tp.y >= b.y && tp.y <= b.y + b.h) {
-
-            switch (b.mode) {
-                case MODE_WIFI:
-                    g_manualOverride = true;
-                    ble_scanner_stop();
-                    g_currentMode = MODE_WIFI;
-                    wifi_scanner_start();
-                    break;
-                case MODE_BLE_ALL:
-                    g_manualOverride = true;
-                    wifi_scanner_stop();
-                    g_currentMode = MODE_BLE_ALL;
-                    ble_scanner_start(BLE_MODE_ALL);
-                    break;
-                case MODE_BLE_FILTERED:
-                    g_manualOverride = true;
-                    wifi_scanner_stop();
-                    g_currentMode = MODE_BLE_FILTERED;
-                    ble_scanner_start(BLE_MODE_FILTERED);
-                    break;
-                case MODE_IDLE:
-                    g_manualOverride = false;
-                    wifi_scanner_stop();
-                    ble_scanner_stop();
-                    g_currentMode = MODE_AUTO_CYCLE;
-                    scan_cycle_resume();
-                    break;
-                case MODE_AUTO_CYCLE:
-                    g_manualOverride = false;
-                    g_currentMode = MODE_AUTO_CYCLE;
-                    scan_cycle_resume();
-                    break;
-                default:
-                    break;
-            }
-            // Debounce
-            delay(200);
-            break;
-        }
-    }
-}
+// ---- Touch handling (GT911 via Wire on SDA=47 SCL=48) ----
+// Note: Touch not yet integrated with Arduino_GFX — will add in next iteration
+// For now the display shows status, buttons are visual only
+// Touch support can be added via a GT911 library or manual I2C reads
 
 // ==========================
 //  Public API
@@ -294,24 +168,36 @@ void display_add_alert(const char* type, const char* mac, int rssi) {
 }
 
 void display_init() {
-    Serial.println("[DISP] Creating mutex...");
     s_alertMutex = xSemaphoreCreateMutex();
-    Serial.println("[DISP] Allocating LCD...");
-    lcd_ptr = new LGFX_WaveshareBox();
-    Serial.println("[DISP] lcd.init()...");
-    lcd.init();
-    Serial.println("[DISP] lcd.init() done");
-    lcd.setRotation(0);
-    lcd.setBrightness(200);
-    lcd.fillScreen(COL_BG);
-    lcd.setFont(&fonts::Font2);
 
-    // Splash
-    lcd.setTextColor(COL_ACCENT, COL_BG);
-    lcd.drawCenterString("Ragnar Scanner", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20);
-    lcd.drawCenterString("Initializing...", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 10);
+    Wire.begin(47, 48);
+
+    // Reset sequence via TCA9554 GPIO expander
+    expander->pinMode(5, OUTPUT);
+    expander->pinMode(6, OUTPUT);
+    expander->digitalWrite(6, LOW);   // backlight off during reset
+    delay(200);
+    expander->digitalWrite(5, LOW);   // reset low
+    delay(200);
+    expander->digitalWrite(5, HIGH);  // reset high
+    delay(200);
+
+    if (!gfx->begin()) {
+        Serial.println("[DISP] gfx->begin() FAILED!");
+        return;
+    }
+
+    gfx->fillScreen(COL_BG);
+    gfx->setTextSize(3);
+    gfx->setTextColor(COL_ACCENT);
+    gfx->setCursor(120, 200);
+    gfx->print("HuginnESP");
+    gfx->setTextSize(2);
+    gfx->setTextColor(COL_TEXT);
+    gfx->setCursor(130, 250);
+    gfx->print("Initializing...");
     delay(1500);
-    lcd.fillScreen(COL_BG);
+    gfx->fillScreen(COL_BG);
 }
 
 void display_task(void* param) {
@@ -319,7 +205,6 @@ void display_task(void* param) {
         drawStatusBar();
         drawButtons();
         drawAlerts();
-        handleTouch();
-        vTaskDelay(pdMS_TO_TICKS(200));
+        vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
