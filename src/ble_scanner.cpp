@@ -1,22 +1,24 @@
 #include "ble_scanner.h"
 #include "config.h"
-#include <NimBLEDevice.h>
+#include <BLEDevice.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
 #include <map>
 
 static BleMode s_mode = BLE_MODE_OFF;
 static int s_bleCount = 0;
-static NimBLEScan* s_pScan = nullptr;
+static BLEScan* s_pScan = nullptr;
 
 // Spam detection: MAC -> ad count within window
 static std::map<String, uint32_t> s_adCounts;
 static unsigned long s_spamWindowStart = 0;
 
 // ---- Flipper Zero detection heuristics ----
-static bool isFlipperDevice(NimBLEAdvertisedDevice* dev, uint8_t& color) {
+static bool isFlipperDevice(BLEAdvertisedDevice& dev, uint8_t& color) {
     // Check for Flipper Zero service UUID
-    if (dev->isAdvertisingService(NimBLEUUID(FLIPPER_SERVICE_UUID))) {
-        color = 0; // default white
-        String name = String(dev->getName().c_str());
+    if (dev.isAdvertisingService(BLEUUID(FLIPPER_SERVICE_UUID))) {
+        color = 0;
+        String name = String(dev.getName().c_str());
         if (name.indexOf("Flipper") >= 0) {
             if (name.indexOf("Black") >= 0)       color = 1;
             else if (name.indexOf("Trans") >= 0)   color = 2;
@@ -25,7 +27,7 @@ static bool isFlipperDevice(NimBLEAdvertisedDevice* dev, uint8_t& color) {
     }
 
     // Heuristic: check device name
-    String name = String(dev->getName().c_str());
+    String name = String(dev.getName().c_str());
     if (name.startsWith("Flipper")) {
         color = 0;
         if (name.indexOf("Black") >= 0)       color = 1;
@@ -36,16 +38,14 @@ static bool isFlipperDevice(NimBLEAdvertisedDevice* dev, uint8_t& color) {
 }
 
 // ---- AirTag detection ----
-static bool isAirTagDevice(NimBLEAdvertisedDevice* dev) {
-    if (!dev->haveManufacturerData()) return false;
-    std::string mfr = dev->getManufacturerData();
+static bool isAirTagDevice(BLEAdvertisedDevice& dev) {
+    if (!dev.haveManufacturerData()) return false;
+    std::string mfr = dev.getManufacturerData();
     if (mfr.size() < 2) return false;
 
-    uint16_t companyId = (uint16_t)mfr[0] | ((uint16_t)mfr[1] << 8);
+    uint16_t companyId = (uint16_t)(uint8_t)mfr[0] | ((uint16_t)(uint8_t)mfr[1] << 8);
     if (companyId != APPLE_COMPANY_ID) return false;
 
-    // Apple AirTag: manufacturer data typically has specific type byte at offset 2
-    // Type 0x12 (Find My) with certain lengths indicates AirTag
     if (mfr.size() >= 3) {
         uint8_t typeByte = (uint8_t)mfr[2];
         if (typeByte == 0x12 || typeByte == 0x07) {
@@ -56,8 +56,8 @@ static bool isAirTagDevice(NimBLEAdvertisedDevice* dev) {
 }
 
 // ---- Skimmer detection ----
-static bool isSkimmerDevice(NimBLEAdvertisedDevice* dev) {
-    String name = String(dev->getName().c_str());
+static bool isSkimmerDevice(BLEAdvertisedDevice& dev) {
+    String name = String(dev.getName().c_str());
     if (name.length() == 0) return false;
     for (int i = 0; SKIMMER_NAMES[i] != nullptr; i++) {
         if (name.equalsIgnoreCase(SKIMMER_NAMES[i])) {
@@ -81,19 +81,19 @@ static void checkSpam(const String& mac) {
 }
 
 // ---- Scan callbacks ----
-class ScanCallbacks : public NimBLEAdvertisedDeviceCallbacks {
-    void onResult(NimBLEAdvertisedDevice* dev) override {
-        String mac  = String(dev->getAddress().toString().c_str());
-        String name = String(dev->getName().c_str());
-        int rssi    = dev->getRSSI();
+class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) override {
+        String mac  = String(advertisedDevice.getAddress().toString().c_str());
+        String name = String(advertisedDevice.getName().c_str());
+        int rssi    = advertisedDevice.getRSSI();
 
         // Always check for spam
         checkSpam(mac);
 
         uint8_t flipperColor = 0;
-        bool flipper = isFlipperDevice(dev, flipperColor);
-        bool airtag  = isAirTagDevice(dev);
-        bool skimmer = isSkimmerDevice(dev);
+        bool flipper = isFlipperDevice(advertisedDevice, flipperColor);
+        bool airtag  = isAirTagDevice(advertisedDevice);
+        bool skimmer = isSkimmerDevice(advertisedDevice);
 
         // ---- Filtered mode: only output Flipper / AirTag ----
         if (s_mode == BLE_MODE_FILTERED) {
@@ -137,7 +137,6 @@ class ScanCallbacks : public NimBLEAdvertisedDeviceCallbacks {
             Serial.printf("MAC: %s, Name: %s, RSSI: %d\n", mac.c_str(),
                           name.length() > 0 ? name.c_str() : "(unknown)", rssi);
 
-            // Also flag special devices
             if (flipper) {
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
@@ -170,8 +169,8 @@ class ScanCallbacks : public NimBLEAdvertisedDeviceCallbacks {
 static ScanCallbacks s_callbacks;
 
 void ble_scanner_init() {
-    NimBLEDevice::init("RagnarScanner");
-    s_pScan = NimBLEDevice::getScan();
+    BLEDevice::init("RagnarScanner");
+    s_pScan = BLEDevice::getScan();
     s_pScan->setAdvertisedDeviceCallbacks(&s_callbacks, false);
     s_pScan->setActiveScan(true);
     s_pScan->setInterval(100);

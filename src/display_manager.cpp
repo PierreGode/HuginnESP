@@ -114,7 +114,8 @@ public:
     }
 };
 
-static LGFX_WaveshareBox lcd;
+static LGFX_WaveshareBox* lcd_ptr = nullptr;
+#define lcd (*lcd_ptr)
 
 // ---- Alert ring buffer ----
 struct AlertEntry {
@@ -293,8 +294,13 @@ void display_add_alert(const char* type, const char* mac, int rssi) {
 }
 
 void display_init() {
+    Serial.println("[DISP] Creating mutex...");
     s_alertMutex = xSemaphoreCreateMutex();
+    Serial.println("[DISP] Allocating LCD...");
+    lcd_ptr = new LGFX_WaveshareBox();
+    Serial.println("[DISP] lcd.init()...");
     lcd.init();
+    Serial.println("[DISP] lcd.init() done");
     lcd.setRotation(0);
     lcd.setBrightness(200);
     lcd.fillScreen(COL_BG);
