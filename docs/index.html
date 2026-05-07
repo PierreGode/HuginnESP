@@ -273,6 +273,28 @@
       .skald a:hover { text-decoration: underline; }
       .skald .row { margin: 0.35rem 0; }
 
+      .compat {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0 auto 1.5rem;
+        padding: 0.45rem 0.95rem;
+        background: rgba(200, 163, 93, 0.06);
+        border: 1px solid rgba(200, 163, 93, 0.25);
+        border-radius: 999px;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        color: var(--bone-dim);
+      }
+      .compat strong { color: var(--bronze); font-weight: 500; letter-spacing: 0.12em; }
+      .compat-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--bronze);
+        box-shadow: 0 0 8px var(--bronze);
+      }
+
       .browser-warn {
         display: none;
         margin-top: 1.25rem;
@@ -317,6 +339,11 @@
         <p>
           Tether your ESP32-S3 by USB. Bid the raven enter, and choose its gate.
         </p>
+
+        <div class="compat" role="note">
+          <span class="compat-dot" aria-hidden="true"></span>
+          Only <strong>ESP32-S3</strong> vessels may be bound. Other chips will be turned away.
+        </div>
 
         <esp-web-install-button manifest="manifest.json">
           <button class="bind" slot="activate">Bind the Raven</button>
