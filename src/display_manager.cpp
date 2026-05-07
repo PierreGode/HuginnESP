@@ -131,7 +131,8 @@ static void drawStatusBar() {
     // diamond ornament between brand and stats
     drawDiamond(140, 22, 3, COL_AGED);
 
-    // counters, middle
+    // counters + mode, right of brand (uptime moved to bottom-right
+    // above the buttons so longer mode names don't collide with it)
     char buf[64];
     snprintf(buf, sizeof(buf), "W:%d  B:%d  %s",
              wifi_scanner_count(), ble_scanner_count(),
@@ -139,13 +140,6 @@ static void drawStatusBar() {
     gfx->setTextColor(COL_BONE);
     gfx->setCursor(160, 12);
     gfx->print(buf);
-
-    // uptime, right
-    char up[16];
-    uptimeStr(up, sizeof(up));
-    gfx->setTextColor(COL_AGED);
-    gfx->setCursor(SCREEN_WIDTH - 110, 12);
-    gfx->print(up);
 }
 
 // =====================================================================
@@ -323,6 +317,15 @@ static void drawStats() {
     snprintf(buf, sizeof(buf), "Heap %uK  PSRAM %uK",
              ESP.getFreeHeap() / 1024, ESP.getFreePsram() / 1024);
     gfx->print(buf);
+
+    // ---- Uptime, bottom-right above the Auto button ----
+    char up[16];
+    uptimeStr(up, sizeof(up));
+    gfx->setTextSize(2);
+    gfx->setTextColor(COL_BRONZE);
+    int upW = (int)strlen(up) * 12;  // size-2 glyphs ≈ 12px wide
+    gfx->setCursor(SCREEN_WIDTH - upW - 10, 410);
+    gfx->print(up);
 }
 
 // =====================================================================
