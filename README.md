@@ -76,6 +76,39 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
 
+### Runtime configuration
+
+A few internal knobs can be tuned over the same serial line — useful when you want different behavior per integration without rebuilding the firmware. State is held in RAM only (no NVS persistence), so the host should push its preferred values at startup.
+
+```
+set <key> <value>     # update a knob
+get <key>             # read one knob
+get all               # dump all knobs
+```
+
+| Key | Type | Range | Effect |
+|---|---|---|---|
+| `wifi_scan_duration_ms` | uint | 500..600000 | Per-step WiFi scan time in the auto-cycle (and the pineapple scan timeout) |
+| `ble_spam_threshold` | uint | 1..10000 | Adverts from one MAC within the spam window before a `BLE Spam detected` alert fires |
+| `skimmer_names` | csv | — | Comma-separated BLE device names treated as suspicious (case-insensitive). Replaces the list, doesn't append |
+
+Every `set`/`get` returns a single JSON status line, e.g.:
+
+```
+> set ble_spam_threshold 8
+{"ok":true,"key":"ble_spam_threshold","value":8}
+> set skimmer_names HC-05,HC-06,JDY-08
+{"ok":true,"key":"skimmer_names","value":"HC-05,HC-06,JDY-08"}
+> set wifi_scan_duration_ms abc
+{"error":"bad value (range 500..600000)"}
+> get all
+{"ok":true,"key":"wifi_scan_duration_ms","value":15000}
+{"ok":true,"key":"ble_spam_threshold","value":8}
+{"ok":true,"key":"skimmer_names","value":"HC-05,HC-06,JDY-08"}
+```
+
+Unknown keys, malformed values, and out-of-range numbers all return `{"error":"..."}` and leave the current value untouched. Existing verbs (`scanap`, `blescan -f`, etc.) are unchanged.
+
 ## Consuming the stream from your own code
 
 Anything that can open a serial port can consume HuginnESP — Ragnar is just one example. Here's a minimal Python consumer using [pyserial](https://pyserial.readthedocs.io/):
