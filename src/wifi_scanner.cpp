@@ -1,5 +1,6 @@
 #include "wifi_scanner.h"
 #include "config.h"
+#include "runtime_config.h"
 #include <WiFi.h>
 #include <vector>
 #include <map>
@@ -8,7 +9,7 @@ static std::vector<WifiNetwork> s_networks;
 static bool s_scanning = false;
 static int  s_lastCount = 0;
 
-// Map SSID -> list of BSSIDs for evil-twin detection
+// Map SSID -> list of BSSIDs for evil-twin detection.
 static std::map<String, std::vector<String>> s_ssidMap;
 
 static const char* authModeStr(wifi_auth_mode_t mode) {
@@ -93,7 +94,7 @@ void wifi_scanner_check_pineapple() {
     // Wait for scan to complete (blocking, used during pineapple cycle step)
     unsigned long start = millis();
     while (WiFi.scanComplete() == WIFI_SCAN_RUNNING) {
-        if (millis() - start > WIFI_SCAN_DURATION) break;
+        if (millis() - start > g_wifiScanDurationMs) break;
         delay(100);
     }
     wifi_scanner_process();

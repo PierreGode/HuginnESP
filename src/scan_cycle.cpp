@@ -3,6 +3,7 @@
 #include "ble_scanner.h"
 #include "serial_cmd.h"
 #include "config.h"
+#include "runtime_config.h"
 
 static volatile bool s_running = true;
 
@@ -43,7 +44,7 @@ bool scan_cycle_is_running() {
 void scan_cycle_task(void* param) {
     int step = 0;
     for (;;) {
-        // If manual override is active, sleep and retry
+        // If manual override is active, sleep and retry.
         if (g_manualOverride || !s_running) {
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;
@@ -51,6 +52,8 @@ void scan_cycle_task(void* param) {
 
         const CycleStep& cs = CYCLE[step];
         g_currentMode = cs.mode;
+        const uint32_t stepDurationMs =
+            (cs.mode == MODE_WIFI) ? g_wifiScanDurationMs : cs.durationMs;
 
         switch (cs.mode) {
             case MODE_WIFI:
@@ -74,7 +77,7 @@ void scan_cycle_task(void* param) {
 
         // Wait for the duration, checking for abort every 250ms
         uint32_t elapsed = 0;
-        while (elapsed < cs.durationMs) {
+        while (elapsed < stepDurationMs) {
             vTaskDelay(pdMS_TO_TICKS(250));
             elapsed += 250;
 

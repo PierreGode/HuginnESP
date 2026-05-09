@@ -1,5 +1,6 @@
 #include "ble_scanner.h"
 #include "config.h"
+#include "runtime_config.h"
 #include <BLEDevice.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
@@ -12,7 +13,7 @@ static int s_airtagCount = 0;
 static int s_skimmerCount = 0;
 static BLEScan* s_pScan = nullptr;
 
-// Spam detection: MAC -> ad count within window
+// Spam detection: MAC -> add count within window
 static std::map<String, uint32_t> s_adCounts;
 static unsigned long s_spamWindowStart = 0;
 
@@ -61,13 +62,7 @@ static bool isAirTagDevice(BLEAdvertisedDevice& dev) {
 // ---- Skimmer detection ----
 static bool isSkimmerDevice(BLEAdvertisedDevice& dev) {
     String name = String(dev.getName().c_str());
-    if (name.length() == 0) return false;
-    for (int i = 0; SKIMMER_NAMES[i] != nullptr; i++) {
-        if (name.equalsIgnoreCase(SKIMMER_NAMES[i])) {
-            return true;
-        }
-    }
-    return false;
+    return isSkimmerName(name);
 }
 
 // ---- BLE Spam detection ----
@@ -78,7 +73,7 @@ static void checkSpam(const String& mac) {
         s_spamWindowStart = now;
     }
     s_adCounts[mac]++;
-    if (s_adCounts[mac] == BLE_SPAM_THRESHOLD) {
+    if (s_adCounts[mac] == g_bleSpamThreshold) {
         Serial.printf("BLE Spam detected from %s\n", mac.c_str());
     }
 }

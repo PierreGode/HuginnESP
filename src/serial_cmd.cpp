@@ -3,6 +3,7 @@
 #include "ble_scanner.h"
 #include "scan_cycle.h"
 #include "config.h"
+#include "runtime_config.h"
 
 volatile ScanMode g_currentMode   = MODE_AUTO_CYCLE;
 volatile bool     g_manualOverride = false;
@@ -23,6 +24,11 @@ const char* scanModeName(ScanMode mode) {
 static void handleCommand(const String& cmd) {
     String c = cmd;
     c.trim();
+
+    // Runtime config (`set <key> <value>` / `get <key>`) — additive, doesn't
+    // touch existing verbs. If the line wasn't `set ...` or `get ...`, this
+    // returns false and we fall through to the original command table.
+    if (runtime_config_handle(c)) return;
 
     if (c == "scanap") {
         g_manualOverride = true;

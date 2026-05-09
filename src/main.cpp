@@ -21,6 +21,7 @@
 #include "wifi_scanner.h"
 #include "serial_cmd.h"
 #include "scan_cycle.h"
+#include "runtime_config.h"
 
 void setup() {
     Serial.begin(SERIAL_BAUD);
@@ -37,7 +38,9 @@ void setup() {
     Serial.printf("[BOOT] PSRAM: %u\n", ESP.getPsramSize());
     Serial.flush();
 
-    // WiFi MUST init before display — WiFi ISR conflicts with RGB DMA cache
+    runtime_config_init();
+
+    // WiFi MUST init before display — WiFi ISR conflicts with RGB DMA cache.
     Serial.println("[BOOT] Init WiFi...");
     wifi_scanner_init();
     Serial.println("[BOOT] WiFi OK");

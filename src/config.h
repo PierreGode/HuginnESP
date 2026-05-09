@@ -30,8 +30,8 @@
 #define MAX_WIFI_NETWORKS  100
 #define MAX_BLE_DEVICES    100
 
-// ----- Skimmer suspicious names -----
-static const char* SKIMMER_NAMES[] = {
+// ----- Skimmer suspicious names (defaults; runtime list lives in runtime_config) -----
+static const char* SKIMMER_NAMES_DEFAULT[] = {
     "HC-05", "HC-06", "HC-08",
     "BT05", "BT06",
     "JDY-30", "JDY-31", "JDY-33",
@@ -40,7 +40,7 @@ static const char* SKIMMER_NAMES[] = {
 };
 
 // ----- Flipper Zero BLE identification -----
-// Flipper Zero manufacturer data company ID (0x4C01 is placeholder;
+// Flipper Zero manufacturer data company ID (0x4C01 is the placeholder;
 // real identification uses service UUID + manufacturer data heuristics)
 #define FLIPPER_SERVICE_UUID "8e400001-f315-4f60-9fb8-838830daea50"
 
