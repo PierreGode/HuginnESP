@@ -33,7 +33,7 @@ Both boards run the same firmware behavior; the C5 build skips display code (`HU
 
 ### Option 1 — Web flasher (easiest, no toolchain)
 
-The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and serves prebuilt merged images for both supported boards (`esp32s3box`, `esp32c5`) — these are produced by [.github/workflows/deploy-flasher.yml](.github/workflows/deploy-flasher.yml) on every push to `main`.
+The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and serves prebuilt merged images for both supported boards (`esp32s3box`, `esp32c5`)
 
 Requirements:
 - A Chromium-based browser on desktop (Chrome, Edge, or Opera). Web Serial is required and is not available in Firefox or Safari.
@@ -45,27 +45,6 @@ Steps: open the page → "Bind the Raven" → pick the serial port → the insta
 ### Option 2 — Build from source (PlatformIO)
 
 Required for development or custom builds. This is a [PlatformIO](https://platformio.org/) project using [pioarduino](https://github.com/pioarduino/platform-espressif32) — Arduino core 3.x / ESP-IDF 5.3 on the S3 env, 5.5 on the C5 env. The platform is downloaded automatically on first build.
-
-Prerequisites:
-- [VS Code](https://code.visualstudio.com/) with the [PlatformIO extension](https://platformio.org/install/ide?install=vscode), or the `pio` CLI.
-
-```bash
-git clone https://github.com/PierreGode/HuginnESP.git
-cd HuginnESP
-
-# Pick an environment: esp32s3box (default) or esp32c5
-pio run -e esp32s3box
-pio run -e esp32c5
-
-# Upload (replace COM8 with your port; on Linux/macOS use /dev/ttyACM0 etc.)
-pio run -e esp32s3box -t upload --upload-port COM8
-
-# Or build, upload, and open the serial monitor in one go
-pio run -e esp32s3box -t upload -t monitor --upload-port COM8
-
-# Just monitor
-pio device monitor --port COM8 --baud 115200
-```
 
 > **Note:** After flashing, the USB port re-enumerates. The combined upload+monitor command handles this automatically.
 
