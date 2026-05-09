@@ -26,6 +26,24 @@
 void setup() {
     Serial.begin(SERIAL_BAUD);
     delay(2000);
+
+#if HUGINN_BOARD_S3
+    const char* HUGINN_BOARD_NAME = "esp32-s3";
+#elif HUGINN_BOARD_C5
+    const char* HUGINN_BOARD_NAME = "esp32-c5";
+#else
+    const char* HUGINN_BOARD_NAME = "unknown";
+#endif
+#if HUGINN_HAS_DISPLAY
+    const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"display\"";
+#else
+    const char* HUGINN_CAPS = "\"wifi\",\"ble\"";
+#endif
+    // Device announce — emitted first so the host can distinguish HuginnESP
+    // from other ESP32 firmware sharing the USB bus.
+    Serial.printf("{\"device\":\"HuginnESP\",\"fw\":\"%s\",\"board\":\"%s\",\"caps\":[%s]}\n",
+                  HUGINN_FW_VERSION, HUGINN_BOARD_NAME, HUGINN_CAPS);
+
     Serial.println("[BOOT] HuginnESP starting...");
 #if HUGINN_BOARD_S3
     Serial.println("[BOOT] Board: ESP32-S3-Touch-LCD-4B (display)");

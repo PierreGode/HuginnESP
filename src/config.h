@@ -4,6 +4,11 @@
 // ----- Serial -----
 #define SERIAL_BAUD 115200
 
+// ----- Firmware version -----
+// Bumped manually; emitted in the device announce line at boot. Should
+// match the version reported by the web flasher's manifest.json.
+#define HUGINN_FW_VERSION "1.0"
+
 // ----- Scan durations (ms) -----
 #define WIFI_SCAN_DURATION   15000
 #define BLE_SCAN_DURATION     8000

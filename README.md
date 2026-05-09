@@ -54,7 +54,17 @@ Required for development or custom builds. This is a [PlatformIO](https://platfo
 
 ## The serial protocol
 
-Once flashed, the device starts auto-cycling through scan modes and emits results to USB serial at **115200 baud, 8N1**. The stream is a mix of:
+Once flashed, the device starts auto-cycling through scan modes and emits results to USB serial at **115200 baud, 8N1**.
+
+The very first line on every boot is a device announce so a host can tell HuginnESP apart from other ESP32 firmware sharing the same USB bus:
+
+```json
+{"device":"HuginnESP","fw":"1.0","board":"esp32-s3","caps":["wifi","ble","display"]}
+```
+
+`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (the `display` cap is S3-only). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
+
+After the announce line, the stream is a mix of:
 
 - **Newline-delimited JSON** for raw scan results, one detection per line:
   ```json
@@ -109,6 +119,14 @@ Every `set`/`get` returns a single JSON status line, e.g.:
 
 Unknown keys, malformed values, and out-of-range numbers all return `{"error":"..."}` and leave the current value untouched. Existing verbs (`scanap`, `blescan -f`, etc.) are unchanged.
 
+**Host integration pattern.** Because the firmware doesn't persist these values, the recommended pattern is:
+
+1. Wait for the `{"device":"HuginnESP",...}` announce line on connect (or after a Huginn reboot).
+2. Push your saved keys with `set ...` lines before relying on any specific behavior.
+3. Optionally call `get all` afterward to verify the values landed.
+
+[Ragnar](https://github.com/PierreGode/Ragnar) implements exactly this — it persists the values host-side in `shared_config.json` and re-pushes them every time the device announce arrives. Any other host (Home Assistant, a CLI tool, etc.) should follow the same handshake.
+
 ## Consuming the stream from your own code
 
 Anything that can open a serial port can consume HuginnESP — Ragnar is just one example. Here's a minimal Python consumer using [pyserial](https://pyserial.readthedocs.io/):
@@ -162,6 +180,7 @@ src/
 ├── wifi_scanner.h/cpp  # WiFi scanning & pineapple detection
 ├── ble_scanner.h/cpp   # BLE scanning, Flipper/AirTag/skimmer/spam detection
 ├── serial_cmd.h/cpp    # Serial command parser
+├── runtime_config.h/cpp # `set`/`get` knobs (RAM-only, host-pushed)
 ├── scan_cycle.h/cpp    # Automatic scan rotation
 └── display_manager.h/cpp # 480×480 touch display UI (S3 only)
 docs/                   # Web flasher (GitHub Pages site)
