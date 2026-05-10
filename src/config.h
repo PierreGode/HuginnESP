@@ -14,6 +14,12 @@
 #define BLE_SCAN_DURATION     8000
 #define PINEAP_SCAN_DURATION 10000
 
+// ----- Wardrive mode (tight WiFi/BLE alternation for moving captures) -----
+// Tuned for ~60 km/h: 2.5s WiFi (one full-channel sweep) + 1.5s BLE
+// (covers all 3 ad channels with margin). 4s total cycle.
+#define WARDRIVE_WIFI_DURATION_MS 2500
+#define WARDRIVE_BLE_DURATION_MS  1500
+
 // ----- BLE parameters -----
 #define BLE_SCAN_WINDOW_MS   8000
 #define BLE_SPAM_THRESHOLD     20   // advertisements from one MAC within window

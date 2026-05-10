@@ -44,7 +44,36 @@ bool scan_cycle_is_running() {
 void scan_cycle_task(void* param) {
     int step = 0;
     for (;;) {
-        // If manual override is active, sleep and retry.
+        // Wardrive mode — tight WiFi/BLE alternation tuned for moving captures.
+        // Stays in this branch until the user types `stop` (which clears
+        // g_manualOverride and resets g_currentMode).
+        if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+            wifi_scanner_start();
+            uint32_t t = 0;
+            while (t < g_wardriveWifiMs &&
+                   g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+                vTaskDelay(pdMS_TO_TICKS(100));
+                t += 100;
+                wifi_scanner_process();
+            }
+            wifi_scanner_stop();
+
+            if (!g_manualOverride || g_currentMode != MODE_WARDRIVE) continue;
+
+            // BLE_ALL emits every device as JSON; Flipper / AirTag / skimmer
+            // detections fire passively on the same stream.
+            ble_scanner_start(BLE_MODE_ALL);
+            t = 0;
+            while (t < g_wardriveBleMs &&
+                   g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+                vTaskDelay(pdMS_TO_TICKS(100));
+                t += 100;
+            }
+            ble_scanner_stop();
+            continue;
+        }
+
+        // If manual override is active (any other mode), sleep and retry.
         if (g_manualOverride || !s_running) {
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;

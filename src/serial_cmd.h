@@ -11,7 +11,8 @@ enum ScanMode {
     MODE_BLE_ALL,
     MODE_SKIMMER,
     MODE_PINEAPPLE,
-    MODE_AUTO_CYCLE
+    MODE_AUTO_CYCLE,
+    MODE_WARDRIVE
 };
 
 extern volatile ScanMode g_currentMode;

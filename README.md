@@ -84,8 +84,20 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `blescan -a` | BLE scan all devices |
 | `capture -skimmer` | Start skimmer detection |
 | `pineap` | Start pineapple / evil-twin detection |
+| `wardrive` | Tight ~4 s WiFi+BLE alternation tuned for moving captures (see below) |
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
+
+#### Wardrive mode
+
+The default auto-cycle has 8 steps totaling ~94 s, which means each radio is sampled too infrequently to reliably catch things while driving. Engaging `wardrive` switches to a tight 2-slot loop instead:
+
+| Slot | Default | Effect |
+|---|---|---|
+| WiFi (`wardrive_wifi_ms`) | 2500 ms | One full 2.4 GHz channel sweep (the chip's minimum useful scan time) |
+| BLE all (`wardrive_ble_ms`) | 1500 ms | Covers all 3 BLE advertising channels with margin; Flipper / AirTag / skimmer detections fire passively from the same stream |
+
+That's a ~4 s cycle. At 60 km/h every WiFi AP in range (~10 s) gets caught 2–3 times; BLE coverage of regular advertisers (Flippers, AirTags, phones) reaches ~70–80 % per pass. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
 
 ### Runtime configuration
 
@@ -101,6 +113,8 @@ get all               # dump all knobs
 |---|---|---|---|
 | `wifi_scan_duration_ms` | uint | 500..600000 | Per-step WiFi scan time in the auto-cycle (and the pineapple scan timeout) |
 | `ble_spam_threshold` | uint | 1..10000 | Adverts from one MAC within the spam window before a `BLE Spam detected` alert fires |
+| `wardrive_wifi_ms` | uint | 1000..30000 | WiFi slot length in `wardrive` mode (default 2500 — one full channel sweep) |
+| `wardrive_ble_ms` | uint | 500..30000 | BLE slot length in `wardrive` mode (default 1500 — covers all 3 ad channels with margin) |
 | `skimmer_names` | csv | — | Comma-separated BLE device names treated as suspicious (case-insensitive). Replaces the list, doesn't append |
 
 Every `set`/`get` returns a single JSON status line, e.g.:

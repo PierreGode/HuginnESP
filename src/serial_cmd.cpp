@@ -17,6 +17,7 @@ const char* scanModeName(ScanMode mode) {
         case MODE_SKIMMER:      return "skimmer";
         case MODE_PINEAPPLE:    return "pineapple";
         case MODE_AUTO_CYCLE:   return "auto";
+        case MODE_WARDRIVE:     return "wardrive";
         default:                return "unknown";
     }
 }
@@ -59,6 +60,14 @@ static void handleCommand(const String& cmd) {
         ble_scanner_stop();
         g_currentMode = MODE_PINEAPPLE;
         wifi_scanner_check_pineapple();
+
+    } else if (c == "wardrive") {
+        // Tight WiFi/BLE alternation tuned for moving captures. Loop runs
+        // in scan_cycle_task while g_currentMode == MODE_WARDRIVE.
+        g_manualOverride = true;
+        wifi_scanner_stop();
+        ble_scanner_stop();
+        g_currentMode = MODE_WARDRIVE;
 
     } else if (c == "stop" || c == "capture -stop") {
         g_manualOverride = false;
