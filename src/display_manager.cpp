@@ -279,7 +279,18 @@ static void drawStats() {
         y += 22;
     }
 
-    y += 10;
+    // ---- Session tally — unique sightings since boot (RAM-only) ----
+    gfx->setTextColor(COL_AGED);
+    gfx->setTextSize(1);
+    gfx->setCursor(10, y);
+    snprintf(buf, sizeof(buf), "SESSION  WiFi:%d  BLE:%d  Flpr:%d  AirT:%d  Skim:%d",
+             wifi_scanner_session_count(),
+             ble_scanner_session_count(),
+             ble_scanner_session_flipper_count(),
+             ble_scanner_session_airtag_count(),
+             ble_scanner_session_skimmer_count());
+    gfx->print(buf);
+    y += 14;
 
     // ---- Recent omens (last 4 alerts) ----
     if (s_alertMutex) xSemaphoreTake(s_alertMutex, portMAX_DELAY);

@@ -29,4 +29,10 @@ int  ble_scanner_flipper_count();
 int  ble_scanner_airtag_count();
 int  ble_scanner_skimmer_count();
 
+// Session totals — unique MACs observed since boot. RAM-only, reset on power cycle.
+int  ble_scanner_session_count();
+int  ble_scanner_session_flipper_count();
+int  ble_scanner_session_airtag_count();
+int  ble_scanner_session_skimmer_count();
+
 #endif // BLE_SCANNER_H

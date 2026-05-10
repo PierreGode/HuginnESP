@@ -34,4 +34,7 @@ const WifiNetwork* wifi_scanner_get_networks(int& count);
 // Pineapple / Evil-Twin detection across cached networks.
 void wifi_scanner_check_pineapple();
 
+// Session total — unique BSSIDs observed since boot. RAM-only, reset on power cycle.
+int wifi_scanner_session_count();
+
 #endif // WIFI_SCANNER_H

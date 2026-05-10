@@ -25,6 +25,7 @@ Both boards run the same firmware behavior; the C5 build skips display code (`HU
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
 | **Evil Twin / Pineapple** | Identify duplicate SSIDs with different BSSIDs |
 | **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
+| **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
 
 ---

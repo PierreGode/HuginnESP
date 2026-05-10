@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <vector>
 #include <map>
+#include <set>
 
 static std::vector<WifiNetwork> s_networks;
 static bool s_scanning = false;
@@ -11,6 +12,12 @@ static int  s_lastCount = 0;
 
 // Map SSID -> list of BSSIDs for evil-twin detection.
 static std::map<String, std::vector<String>> s_ssidMap;
+
+// Session total — unique BSSIDs observed since boot.
+// Read by the display task on the other core, written here.
+#define WIFI_SESSION_TRACK_CAP 4096
+static SemaphoreHandle_t s_sessionMutex = nullptr;
+static std::set<String>  s_sessionBssids;
 
 static const char* authModeStr(wifi_auth_mode_t mode) {
     switch (mode) {
@@ -26,6 +33,7 @@ static const char* authModeStr(wifi_auth_mode_t mode) {
 }
 
 void wifi_scanner_init() {
+    if (!s_sessionMutex) s_sessionMutex = xSemaphoreCreateMutex();
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
 }
@@ -65,6 +73,14 @@ void wifi_scanner_process() {
 
         // Track for evil-twin detection
         s_ssidMap[net.ssid].push_back(net.bssid);
+
+        // Session total — unique BSSIDs since boot (capped to bound memory).
+        if (s_sessionMutex && xSemaphoreTake(s_sessionMutex, portMAX_DELAY) == pdTRUE) {
+            if (s_sessionBssids.size() < WIFI_SESSION_TRACK_CAP) {
+                s_sessionBssids.insert(net.bssid);
+            }
+            xSemaphoreGive(s_sessionMutex);
+        }
     }
 
     WiFi.scanDelete();
@@ -85,6 +101,16 @@ int wifi_scanner_count() {
 const WifiNetwork* wifi_scanner_get_networks(int& count) {
     count = (int)s_networks.size();
     return count > 0 ? s_networks.data() : nullptr;
+}
+
+int wifi_scanner_session_count() {
+    if (!s_sessionMutex) return 0;
+    int n = 0;
+    if (xSemaphoreTake(s_sessionMutex, portMAX_DELAY) == pdTRUE) {
+        n = (int)s_sessionBssids.size();
+        xSemaphoreGive(s_sessionMutex);
+    }
+    return n;
 }
 
 void wifi_scanner_check_pineapple() {

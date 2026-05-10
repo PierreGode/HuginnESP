@@ -5,6 +5,7 @@
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
 #include <map>
+#include <set>
 
 static BleMode s_mode = BLE_MODE_OFF;
 static int s_bleCount = 0;
@@ -16,6 +17,16 @@ static BLEScan* s_pScan = nullptr;
 // Spam detection: MAC -> add count within window
 static std::map<String, uint32_t> s_adCounts;
 static unsigned long s_spamWindowStart = 0;
+
+// ---- Session totals — unique MACs observed since boot ----
+// Touched by the BLE callback (BLE task) and by the display task on the
+// other core, so all access goes through s_sessionMutex.
+#define BLE_SESSION_TRACK_CAP 4096
+static SemaphoreHandle_t s_sessionMutex = nullptr;
+static std::set<String> s_sessionBleMacs;
+static std::set<String> s_sessionFlipperMacs;
+static std::set<String> s_sessionAirtagMacs;
+static std::set<String> s_sessionSkimmerMacs;
 
 // ---- Flipper Zero detection heuristics ----
 static bool isFlipperDevice(BLEAdvertisedDevice& dev, uint8_t& color) {
@@ -92,6 +103,15 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         bool flipper = isFlipperDevice(advertisedDevice, flipperColor);
         bool airtag  = isAirTagDevice(advertisedDevice);
         bool skimmer = isSkimmerDevice(advertisedDevice);
+
+        // Session totals — unique MACs since boot (capped to bound memory).
+        if (s_sessionMutex && xSemaphoreTake(s_sessionMutex, portMAX_DELAY) == pdTRUE) {
+            if (s_sessionBleMacs.size() < BLE_SESSION_TRACK_CAP) s_sessionBleMacs.insert(mac);
+            if (flipper) s_sessionFlipperMacs.insert(mac);
+            if (airtag)  s_sessionAirtagMacs.insert(mac);
+            if (skimmer) s_sessionSkimmerMacs.insert(mac);
+            xSemaphoreGive(s_sessionMutex);
+        }
 
         // ---- Filtered mode: only output Flipper / AirTag ----
         if (s_mode == BLE_MODE_FILTERED) {
@@ -174,6 +194,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
 static ScanCallbacks s_callbacks;
 
 void ble_scanner_init() {
+    if (!s_sessionMutex) s_sessionMutex = xSemaphoreCreateMutex();
     BLEDevice::init("HuginnESP");
     s_pScan = BLEDevice::getScan();
     s_pScan->setAdvertisedDeviceCallbacks(&s_callbacks, false);
@@ -217,3 +238,18 @@ int ble_scanner_airtag_count() {
 int ble_scanner_skimmer_count() {
     return s_skimmerCount;
 }
+
+static int sessionSetSize(const std::set<String>& s) {
+    if (!s_sessionMutex) return 0;
+    int n = 0;
+    if (xSemaphoreTake(s_sessionMutex, portMAX_DELAY) == pdTRUE) {
+        n = (int)s.size();
+        xSemaphoreGive(s_sessionMutex);
+    }
+    return n;
+}
+
+int ble_scanner_session_count()         { return sessionSetSize(s_sessionBleMacs); }
+int ble_scanner_session_flipper_count() { return sessionSetSize(s_sessionFlipperMacs); }
+int ble_scanner_session_airtag_count()  { return sessionSetSize(s_sessionAirtagMacs); }
+int ble_scanner_session_skimmer_count() { return sessionSetSize(s_sessionSkimmerMacs); }
