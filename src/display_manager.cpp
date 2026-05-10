@@ -280,21 +280,21 @@ static void drawStats() {
     }
 
     // ---- Session tally — unique sightings since boot (RAM-only) ----
-    gfx->setTextColor(COL_AGED);
-    gfx->setTextSize(1);
+    gfx->setTextColor(COL_BONE);
+    gfx->setTextSize(2);
     gfx->setCursor(10, y);
-    snprintf(buf, sizeof(buf), "SESSION  WiFi:%d  BLE:%d  Flpr:%d  AirT:%d  Skim:%d",
+    snprintf(buf, sizeof(buf), "Session W:%d B:%d F:%d A:%d S:%d",
              wifi_scanner_session_count(),
              ble_scanner_session_count(),
              ble_scanner_session_flipper_count(),
              ble_scanner_session_airtag_count(),
              ble_scanner_session_skimmer_count());
     gfx->print(buf);
-    y += 14;
+    y += 22;
 
     // ---- Recent omens (last 4 alerts) ----
     if (s_alertMutex) xSemaphoreTake(s_alertMutex, portMAX_DELAY);
-    int alertCount = min(s_alertCount, 4);
+    int alertCount = min(s_alertCount, 3);
     if (alertCount > 0) {
         drawSectionHeader(10, y, "Recent Omens");
         y += 30;
