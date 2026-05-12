@@ -81,8 +81,10 @@ jobs:
           VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
           echo "Version: $VERSION"
 
-          jq --arg v "$VERSION" '.version = $v' site/manifest.json > site/manifest.json.tmp
-          mv site/manifest.json.tmp site/manifest.json
+          for m in manifest-esp32s3.json manifest-esp32c5.json; do
+            jq --arg v "$VERSION" '.version = $v' "site/$m" > "site/$m.tmp"
+            mv "site/$m.tmp" "site/$m"
+          done
 
           echo "{\"build\":\"$VERSION\",\"sha\":\"${GITHUB_SHA::7}\",\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > site/version.json
 

@@ -293,6 +293,34 @@
         color: var(--bone-dim);
       }
       .compat strong { color: var(--bronze); font-weight: 500; letter-spacing: 0.12em; }
+
+      .binders {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+      }
+
+      .rite {
+        margin: 1.25rem auto 0;
+        max-width: 46ch;
+        color: var(--bone-dim);
+        font-size: 0.82rem;
+        line-height: 1.5;
+        letter-spacing: 0.02em;
+      }
+      .rite strong { color: var(--bronze); font-weight: 500; }
+      .rite code {
+        font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+        color: var(--rune);
+        background: rgba(200, 163, 93, 0.08);
+        padding: 0.05rem 0.4rem;
+        border-radius: 2px;
+        font-size: 0.78rem;
+        letter-spacing: 0.05em;
+      }
+
       .compat-dot {
         width: 6px;
         height: 6px;
@@ -349,18 +377,36 @@
 
         <div class="compat" role="note">
           <span class="compat-dot" aria-hidden="true"></span>
-          Vessels accepted: <strong>ESP32-S3</strong> &middot; <strong>ESP32-C5</strong>
+          Choose the vessel kindred to your hand
         </div>
 
-        <esp-web-install-button manifest="manifest.json">
-          <button class="bind" slot="activate">Bind the Raven</button>
-          <button class="warn" slot="unsupported">
-            Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
-          </button>
-          <button class="warn" slot="not-allowed">
-            The runes require HTTPS to bind
-          </button>
-        </esp-web-install-button>
+        <div class="binders">
+          <esp-web-install-button manifest="manifest-esp32s3.json">
+            <button class="bind" slot="activate">Bind &mdash; ESP32-S3</button>
+            <button class="warn" slot="unsupported">
+              Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
+            </button>
+            <button class="warn" slot="not-allowed">
+              The runes require HTTPS to bind
+            </button>
+          </esp-web-install-button>
+
+          <esp-web-install-button manifest="manifest-esp32c5.json">
+            <button class="bind" slot="activate">Bind &mdash; ESP32-C5</button>
+            <button class="warn" slot="unsupported">
+              Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
+            </button>
+            <button class="warn" slot="not-allowed">
+              The runes require HTTPS to bind
+            </button>
+          </esp-web-install-button>
+        </div>
+
+        <p class="rite">
+          <strong>If the binding falters,</strong> hold the <code>BOOT</code> rune,
+          tap <code>RESET</code>, release <code>BOOT</code> &mdash; then bid the raven enter.
+          The C5 vessel must oft be coaxed by hand into the download trance.
+        </p>
 
         <div id="browserWarn" class="browser-warn">
           Web Serial is only spoken by Chromium-born browsers (Chrome, Edge, Opera) on desktop.

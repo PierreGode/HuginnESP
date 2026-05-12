@@ -5,7 +5,10 @@
       "WebFetch(domain:pierregode.github.io)",
       "PowerShell(& \"$env:USERPROFILE\\\\.platformio\\\\penv\\\\Scripts\\\\pio.exe\" run -e esp32s3box 2>&1 | Select-Object -Last 15)",
       "WebFetch(domain:unpkg.com)",
-      "WebFetch(domain:app.unpkg.com)"
+      "WebFetch(domain:app.unpkg.com)",
+      "Bash(cat /tmp/btn.js | head -50)",
+      "Read(//tmp/**)",
+      "Bash(curl -sL \"https://unpkg.com/esp-web-tools@10.2.1/dist/web/install-dialog-C5LjR_e6.js\" -o /tmp/dlg.js)"
     ]
   }
 }
