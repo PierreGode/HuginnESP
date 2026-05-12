@@ -65,11 +65,15 @@ jobs:
             0x10000  "$S3_DIR/firmware.bin"
 
           # ---- ESP32-C5 merged image ----
+          # ESP32-C5 second-stage bootloader lives at flash 0x2000 (not 0x0
+          # like S3/C6). --target-offset 0x0 pads the merged file from 0 so
+          # the manifest can still flash it at offset 0.
           C5_DIR=.pio/build/esp32c5
           python -m esptool --chip esp32c5 merge_bin \
             --output site/firmware/huginn-esp32c5.bin \
             --flash_mode dio --flash_freq 80m --flash_size 16MB \
-            0x0000   "$C5_DIR/bootloader.bin" \
+            --target-offset 0x0 \
+            0x2000   "$C5_DIR/bootloader.bin" \
             0x8000   "$C5_DIR/partitions.bin" \
             0xe000   "$BOOT_APP0" \
             0x10000  "$C5_DIR/firmware.bin"

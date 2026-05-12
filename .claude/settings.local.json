@@ -3,7 +3,9 @@
     "allow": [
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:pierregode.github.io)",
-      "PowerShell(& \"$env:USERPROFILE\\\\.platformio\\\\penv\\\\Scripts\\\\pio.exe\" run -e esp32s3box 2>&1 | Select-Object -Last 15)"
+      "PowerShell(& \"$env:USERPROFILE\\\\.platformio\\\\penv\\\\Scripts\\\\pio.exe\" run -e esp32s3box 2>&1 | Select-Object -Last 15)",
+      "WebFetch(domain:unpkg.com)",
+      "WebFetch(domain:app.unpkg.com)"
     ]
   }
 }
