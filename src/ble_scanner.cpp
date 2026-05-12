@@ -213,7 +213,7 @@ void ble_scanner_start(BleMode mode) {
     s_adCounts.clear();
     s_spamWindowStart = millis();
     s_pScan->clearResults();
-    s_pScan->start(BLE_SCAN_WINDOW_MS / 1000, false);
+    s_pScan->start(0, false); // 0 = indefinite; scan_cycle stops it explicitly
 }
 
 void ble_scanner_stop() {
