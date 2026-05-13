@@ -369,24 +369,24 @@ static void ncm_teardown() {
 bool usb_net_enable() {
     if (!usb_net_is_supported()) {
 #if HUGINN_BOARD_S3 && !HUGINN_USBNET
-        Serial.println("{\"warn\":\"usbnet compiled out (HUGINN_USBNET=0); flip the build flag + uncomment custom_sdkconfig to enable\"}");
+        Serial.println("[HUGINN] {\"warn\":\"usbnet compiled out (HUGINN_USBNET=0); flip the build flag + uncomment custom_sdkconfig to enable\"}");
 #else
-        Serial.println("{\"error\":\"usbnet not supported on this board\"}");
+        Serial.println("[HUGINN] {\"error\":\"usbnet not supported on this board\"}");
 #endif
         return false;
     }
     if (s_enabled) {
-        Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"already on\"}");
+        Serial.println("[HUGINN] {\"ok\":true,\"key\":\"usbnet\",\"value\":\"already on\"}");
         return true;
     }
 #if HUGINN_USBNET_ACTIVE
     s_enabled = true;
     if (!ncm_bringup()) {
         s_enabled = false;
-        Serial.println("{\"error\":\"usbnet bring-up failed; check logs\"}");
+        Serial.println("[HUGINN] {\"error\":\"usbnet bring-up failed; check logs\"}");
         return false;
     }
-    Serial.printf("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"on\",\"url\":\"http://huginn.local/\",\"ip\":\"192.168.7.1\"}\n");
+    Serial.printf("[HUGINN] {\"ok\":true,\"key\":\"usbnet\",\"value\":\"on\",\"url\":\"http://huginn.local/\",\"ip\":\"192.168.7.1\"}\n");
     return true;
 #else
     return false;
@@ -395,13 +395,13 @@ bool usb_net_enable() {
 
 bool usb_net_disable() {
     if (!s_enabled) {
-        Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"already off\"}");
+        Serial.println("[HUGINN] {\"ok\":true,\"key\":\"usbnet\",\"value\":\"already off\"}");
         return true;
     }
 #if HUGINN_USBNET_ACTIVE
     s_enabled = false;
     ncm_teardown();
-    Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"off\"}");
+    Serial.println("[HUGINN] {\"ok\":true,\"key\":\"usbnet\",\"value\":\"off\"}");
     return true;
 #else
     return false;
