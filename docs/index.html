@@ -463,93 +463,202 @@
           { label: 'status',               cmd: 'status' },
         ];
 
-        /* MutationObserver to patch the esp-web-tools dialog once it opens */
-        const observer = new MutationObserver(function(mutations) {
-          for (const m of mutations) {
-            for (const node of m.addedNodes) {
-              if (!node.shadowRoot) continue;
-              const patch = () => {
-                const sr = node.shadowRoot;
-                /* Find the "Logs" heading inside the dialog's shadow DOM */
-                const headings = sr.querySelectorAll('h3, h4, .header, [class*="log"] span, [slot]');
-                sr.querySelectorAll('*').forEach(el => {
-                  if (el.textContent.trim() === 'Logs' && el.children.length === 0) {
-                    el.textContent = 'Logs & Console';
-                  }
-                });
-
-                /* Find the console input (the text field where you type commands) */
-                const input = sr.querySelector('input[type="text"]');
-                if (!input) return;
-
-                /* Don't inject twice */
-                if (sr.querySelector('.huginn-cmd-bar')) return;
-
-                const bar = document.createElement('div');
-                bar.className = 'huginn-cmd-bar';
-                bar.style.cssText = 'display:flex;gap:6px;align-items:center;margin:4px 0 8px;flex-wrap:wrap;';
-
-                const select = document.createElement('select');
-                select.style.cssText =
-                  'background:#1a1a1a;color:#e8e2d4;border:1px solid #333;border-radius:3px;' +
-                  'padding:4px 8px;font-size:13px;font-family:monospace;cursor:pointer;max-width:260px;';
-                const defaultOpt = document.createElement('option');
-                defaultOpt.textContent = '▾ Quick commands…';
-                defaultOpt.value = '';
-                select.appendChild(defaultOpt);
-
-                commands.forEach(c => {
-                  const opt = document.createElement('option');
-                  if (c.disabled) {
-                    opt.disabled = true;
-                    opt.textContent = c.label;
-                  } else {
-                    opt.value = c.cmd;
-                    opt.textContent = c.label + '  →  ' + c.cmd;
-                  }
-                  select.appendChild(opt);
-                });
-
-                const sendBtn = document.createElement('button');
-                sendBtn.textContent = 'Send';
-                sendBtn.style.cssText =
-                  'background:#c8a35d;color:#0a0908;border:none;border-radius:3px;' +
-                  'padding:4px 14px;font-size:13px;font-family:"Cinzel",serif;font-weight:600;' +
-                  'letter-spacing:0.1em;cursor:pointer;';
-
-                select.addEventListener('change', () => {
-                  if (select.value) {
-                    input.value = select.value;
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                  }
-                });
-
-                sendBtn.addEventListener('click', () => {
-                  if (input.value.trim()) {
-                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-                    input.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-                    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-                    /* Reset dropdown */
-                    setTimeout(() => { select.selectedIndex = 0; }, 200);
-                  }
-                });
-
-                bar.appendChild(select);
-                bar.appendChild(sendBtn);
-                input.parentElement.insertBefore(bar, input);
-              };
-
-              /* The dialog shadow DOM may populate async; retry briefly */
-              patch();
-              let retries = 0;
-              const iv = setInterval(() => {
-                patch();
-                if (++retries > 20 || sr.querySelector('.huginn-cmd-bar')) clearInterval(iv);
-              }, 300);
+        /* Walk all shadow roots recursively to find elements */
+        function deepQuery(root, selector) {
+          let result = root.querySelector(selector);
+          if (result) return result;
+          const children = root.querySelectorAll('*');
+          for (const child of children) {
+            if (child.shadowRoot) {
+              result = deepQuery(child.shadowRoot, selector);
+              if (result) return result;
             }
           }
-        });
+          return null;
+        }
+
+        function deepQueryAll(root, selector) {
+          let results = [...root.querySelectorAll(selector)];
+          const children = root.querySelectorAll('*');
+          for (const child of children) {
+            if (child.shadowRoot) {
+              results = results.concat(deepQueryAll(child.shadowRoot, selector));
+            }
+          }
+          return results;
+        }
+
+        function findPort() {
+          /* esp-web-tools uses the Web Serial port directly; grab it from
+             the ewt-install-dialog or esp-web-install-button elements */
+          const dialogs = document.querySelectorAll('ewt-install-dialog, esp-web-install-dialog');
+          for (const d of dialogs) {
+            if (d.port) return d.port;
+            if (d._port) return d._port;
+          }
+          return null;
+        }
+
+        let injected = false;
+
+        function tryInject() {
+          if (injected) return;
+
+          /* Rename "Logs" -> "Logs & Console" in any shadow root */
+          deepQueryAll(document, '*').forEach(el => {
+            if (el.children && el.children.length === 0 &&
+                el.textContent && el.textContent.trim() === 'Logs') {
+              el.textContent = 'Logs & Console';
+            }
+          });
+
+          /* Find the input — could be input, [contenteditable], or textarea */
+          let input = deepQuery(document, 'input[type="text"]')
+                   || deepQuery(document, 'input:not([type="hidden"]):not([type="file"])')
+                   || deepQuery(document, 'textarea')
+                   || deepQuery(document, '[contenteditable]');
+
+          /* Also look for the ewt console's specific structure: a div with
+             the > prompt. The input is typically next to it. */
+          if (!input) {
+            const prompts = deepQueryAll(document, 'span, div');
+            for (const p of prompts) {
+              if (p.textContent.trim() === '>' && p.nextElementSibling) {
+                const sib = p.nextElementSibling;
+                if (sib.tagName === 'INPUT' || sib.tagName === 'TEXTAREA' ||
+                    sib.contentEditable === 'true') {
+                  input = sib;
+                  break;
+                }
+              }
+            }
+          }
+
+          /* Find the container with action links (Reset Device, Download Logs, Back) */
+          const actionLinks = deepQueryAll(document, 'a, button');
+          let actionBar = null;
+          for (const link of actionLinks) {
+            if (link.textContent && link.textContent.trim() === 'Download Logs') {
+              actionBar = link.parentElement;
+              break;
+            }
+          }
+
+          const anchor = actionBar || (input && input.parentElement);
+          if (!anchor) return;
+
+          /* Don't inject twice */
+          if (anchor.querySelector && anchor.querySelector('.huginn-cmd-bar')) return;
+          const root = anchor.getRootNode();
+          if (root !== document && root.querySelector && root.querySelector('.huginn-cmd-bar')) return;
+
+          const bar = document.createElement('div');
+          bar.className = 'huginn-cmd-bar';
+          bar.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 12px;flex-wrap:wrap;';
+
+          const select = document.createElement('select');
+          select.style.cssText =
+            'background:#1a1a1a;color:#e8e2d4;border:1px solid #444;border-radius:3px;' +
+            'padding:5px 8px;font-size:13px;font-family:monospace;cursor:pointer;flex:1;min-width:200px;max-width:320px;';
+          const defaultOpt = document.createElement('option');
+          defaultOpt.textContent = '▾ Quick commands…';
+          defaultOpt.value = '';
+          select.appendChild(defaultOpt);
+
+          commands.forEach(c => {
+            const opt = document.createElement('option');
+            if (c.disabled) {
+              opt.disabled = true;
+              opt.textContent = c.label;
+            } else {
+              opt.value = c.cmd;
+              opt.textContent = c.label + '  →  ' + c.cmd;
+            }
+            select.appendChild(opt);
+          });
+
+          const sendBtn = document.createElement('button');
+          sendBtn.textContent = 'Send';
+          sendBtn.style.cssText =
+            'background:#c8a35d;color:#0a0908;border:none;border-radius:3px;' +
+            'padding:5px 16px;font-size:13px;font-family:"Cinzel",serif;font-weight:600;' +
+            'letter-spacing:0.1em;cursor:pointer;white-space:nowrap;';
+
+          async function sendCommand(cmd) {
+            if (!cmd) return;
+
+            /* Method 1: Fill the input and press Enter */
+            if (input) {
+              const nativeSetter = Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype, 'value'
+              );
+              if (nativeSetter && nativeSetter.set) {
+                nativeSetter.set.call(input, cmd);
+              } else {
+                input.value = cmd;
+              }
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new KeyboardEvent('keydown',  { key:'Enter', code:'Enter', keyCode:13, bubbles:true }));
+              input.dispatchEvent(new KeyboardEvent('keypress', { key:'Enter', code:'Enter', keyCode:13, bubbles:true }));
+              input.dispatchEvent(new KeyboardEvent('keyup',    { key:'Enter', code:'Enter', keyCode:13, bubbles:true }));
+            }
+
+            /* Method 2: Write directly to the serial port */
+            if (!input) {
+              const port = findPort();
+              if (port && port.writable) {
+                const writer = port.writable.getWriter();
+                const encoder = new TextEncoder();
+                await writer.write(encoder.encode(cmd + '\n'));
+                writer.releaseLock();
+              }
+            }
+
+            setTimeout(() => { select.selectedIndex = 0; }, 200);
+          }
+
+          select.addEventListener('change', () => {
+            if (select.value && input) {
+              const nativeSetter = Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype, 'value'
+              );
+              if (nativeSetter && nativeSetter.set) {
+                nativeSetter.set.call(input, select.value);
+              } else {
+                input.value = select.value;
+              }
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.focus();
+            }
+          });
+
+          sendBtn.addEventListener('click', () => {
+            const cmd = select.value || (input && input.value ? input.value.trim() : '');
+            if (cmd) sendCommand(cmd);
+          });
+
+          bar.appendChild(select);
+          bar.appendChild(sendBtn);
+
+          /* Insert before the action bar, or before the input */
+          if (actionBar) {
+            actionBar.parentElement.insertBefore(bar, actionBar);
+          } else if (input) {
+            input.parentElement.insertBefore(bar, input);
+          }
+          injected = true;
+        }
+
+        /* MutationObserver + polling to catch the dialog appearing */
+        const observer = new MutationObserver(() => tryInject());
         observer.observe(document.body, { childList: true, subtree: true });
+
+        /* Also poll because shadow DOM changes may not trigger mutations on body */
+        let polls = 0;
+        const poller = setInterval(() => {
+          tryInject();
+          if (injected || ++polls > 100) clearInterval(poller);
+        }, 300);
       })();
     </script>
   </body>
