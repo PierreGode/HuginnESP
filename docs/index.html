@@ -346,22 +346,21 @@
         .ritual { padding: 1.5rem 1rem; }
       }
 
-      /* ---- Serial Console panel ---- */
-      .console-panel {
+      /* ---- Serial Console + Logs split panel ---- */
+      .serial-section {
         margin-top: 2rem;
-        border: 1px solid rgba(200,163,93,0.2);
-        border-radius: 4px;
-        background: linear-gradient(180deg, rgba(21,17,13,0.9) 0%, rgba(10,9,8,0.9) 100%);
-        overflow: hidden;
       }
-      .console-panel .cp-header {
+      .serial-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid rgba(200,163,93,0.15);
+        background: linear-gradient(180deg, rgba(21,17,13,0.95) 0%, rgba(15,12,10,0.95) 100%);
+        border: 1px solid rgba(200,163,93,0.2);
+        border-radius: 4px 4px 0 0;
+        border-bottom: none;
       }
-      .console-panel .cp-header h2 {
+      .serial-header h2 {
         font-family: "Cinzel", serif;
         font-weight: 600;
         letter-spacing: 0.2em;
@@ -370,21 +369,26 @@
         color: var(--bronze);
         margin: 0;
       }
-      .console-panel .cp-status {
+      .serial-header .sh-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .serial-header .sh-status {
         display: flex;
         align-items: center;
         gap: 6px;
         font-size: 0.78rem;
         color: var(--ash);
       }
-      .console-panel .cp-dot {
+      .serial-header .sh-dot {
         width: 7px; height: 7px;
         border-radius: 50%;
         background: var(--ash);
         transition: background 0.3s;
       }
-      .console-panel .cp-dot.connected { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
-      .console-panel .cp-connect {
+      .serial-header .sh-dot.connected { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+      .serial-header .sh-connect {
         font-family: "Cinzel", serif;
         font-weight: 600;
         font-size: 0.78rem;
@@ -397,79 +401,136 @@
         cursor: pointer;
         border-radius: 2px;
       }
-      .console-panel .cp-connect:hover { background: rgba(200,163,93,0.1); }
-      .console-panel .cp-toolbar {
+      .serial-header .sh-connect:hover { background: rgba(200,163,93,0.1); }
+
+      .split-panes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        border: 1px solid rgba(200,163,93,0.2);
+        border-radius: 0 0 4px 4px;
+        overflow: hidden;
+      }
+      @media (max-width: 640px) {
+        .split-panes { grid-template-columns: 1fr; }
+      }
+
+      .pane {
+        display: flex;
+        flex-direction: column;
+        background: #0a0908;
+        min-height: 300px;
+      }
+      .pane + .pane {
+        border-left: 1px solid rgba(200,163,93,0.15);
+      }
+      @media (max-width: 640px) {
+        .pane + .pane { border-left: none; border-top: 1px solid rgba(200,163,93,0.15); }
+      }
+      .pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        background: rgba(21,17,13,0.8);
+        border-bottom: 1px solid rgba(200,163,93,0.1);
+        flex-shrink: 0;
+      }
+      .pane-header h3 {
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        font-size: 0.75rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--bone-dim);
+        margin: 0;
+      }
+      .pane-header button {
+        background: transparent;
+        color: var(--ash);
+        border: 1px solid #333;
+        padding: 2px 8px;
+        font-size: 10px;
+        cursor: pointer;
+        border-radius: 2px;
+      }
+      .pane-header button:hover { color: var(--bone-dim); border-color: #555; }
+      .pane-output {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem 0.75rem;
+        font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--bone-dim);
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 280px;
+      }
+      .pane-output .log-line { color: var(--ash); }
+      .pane-output .cmd-echo { color: var(--accent); }
+      .pane-output .cmd-response { color: var(--bone); }
+
+      /* Console toolbar + input */
+      .console-toolbar {
         display: flex;
         gap: 6px;
         align-items: center;
-        padding: 0.5rem 1rem;
-        border-bottom: 1px solid rgba(200,163,93,0.1);
+        padding: 0.4rem 0.75rem;
+        border-top: 1px solid rgba(200,163,93,0.08);
+        background: rgba(21,17,13,0.5);
         flex-wrap: wrap;
+        flex-shrink: 0;
       }
-      .console-panel .cp-toolbar select {
+      .console-toolbar select {
         background: #111;
         color: var(--bone);
         border: 1px solid #333;
         border-radius: 3px;
-        padding: 5px 8px;
-        font-size: 12px;
+        padding: 4px 6px;
+        font-size: 11px;
         font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
         cursor: pointer;
         flex: 1;
-        min-width: 180px;
-        max-width: 320px;
+        min-width: 140px;
       }
-      .console-panel .cp-toolbar button {
+      .console-toolbar .ct-send {
         background: var(--bronze);
         color: var(--ink);
         border: none;
         border-radius: 3px;
-        padding: 5px 14px;
-        font-size: 12px;
+        padding: 4px 12px;
+        font-size: 11px;
         font-family: "Cinzel",serif;
         font-weight: 600;
         letter-spacing: 0.1em;
         cursor: pointer;
-        white-space: nowrap;
       }
-      .console-panel .cp-toolbar button:hover { filter: brightness(1.1); }
-      .console-panel .cp-output {
-        height: 220px;
-        overflow-y: auto;
-        padding: 0.6rem 1rem;
-        font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
-        font-size: 12px;
-        line-height: 1.5;
-        color: var(--bone-dim);
-        background: #0a0908;
-        white-space: pre-wrap;
-        word-break: break-all;
-      }
-      .console-panel .cp-output .cmd-echo {
-        color: var(--accent);
-      }
-      .console-panel .cp-input-row {
+      .console-toolbar .ct-send:hover { filter: brightness(1.1); }
+      .console-input-row {
         display: flex;
         border-top: 1px solid rgba(200,163,93,0.1);
+        background: rgba(10,9,8,0.9);
+        flex-shrink: 0;
       }
-      .console-panel .cp-prompt {
-        padding: 0.5rem 0 0.5rem 1rem;
+      .console-input-row .ci-prompt {
+        padding: 0.4rem 0 0.4rem 0.75rem;
         color: var(--bronze);
         font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
-        font-size: 13px;
+        font-size: 12px;
         user-select: none;
       }
-      .console-panel .cp-input {
+      .console-input-row .ci-input {
         flex: 1;
         background: transparent;
         border: none;
         outline: none;
         color: var(--bone);
         font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
-        font-size: 13px;
-        padding: 0.5rem 0.5rem;
+        font-size: 12px;
+        padding: 0.4rem 0.5rem;
       }
-      .console-panel .cp-input::placeholder { color: var(--ash); }
+      .console-input-row .ci-input::placeholder { color: var(--ash); }
     </style>
   </head>
   <body>
@@ -540,53 +601,69 @@
 
       <footer class="skald">
 
-      <!-- ── Serial Console ── -->
+      <!-- ── Serial Logs & Console (split view) ── -->
       <div class="divider" aria-hidden="true"><span>ᚱ</span></div>
 
-      <section class="console-panel" id="consolePanel">
-        <div class="cp-header">
-          <h2>Serial Console</h2>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="cp-status">
-              <span class="cp-dot" id="cpDot"></span>
-              <span id="cpState">disconnected</span>
+      <section class="serial-section" id="serialSection">
+        <div class="serial-header">
+          <h2>Serial</h2>
+          <div class="sh-right">
+            <div class="sh-status">
+              <span class="sh-dot" id="shDot"></span>
+              <span id="shState">disconnected</span>
             </div>
-            <button class="cp-connect" id="cpConnectBtn">Connect</button>
+            <button class="sh-connect" id="shConnectBtn">Connect</button>
           </div>
         </div>
-        <div class="cp-toolbar">
-          <select id="cpCmdSelect">
-            <option value="">▾ Quick commands…</option>
-            <optgroup label="Scan Modes">
-              <option value="stop">Auto cycle  →  stop</option>
-              <option value="scanap">Wi-Fi scan  →  scanap</option>
-              <option value="blescan -f">BLE filtered  →  blescan -f</option>
-              <option value="blescan -a">BLE all  →  blescan -a</option>
-              <option value="capture -skimmer">Skimmer detect  →  capture -skimmer</option>
-              <option value="pineap">Pineapple detect  →  pineap</option>
-              <option value="wardrive">Wardrive  →  wardrive</option>
-            </optgroup>
-            <optgroup label="USB Network">
-              <option value="usbnet on">usbnet on</option>
-              <option value="usbnet off">usbnet off</option>
-              <option value="usbnet status">usbnet status</option>
-            </optgroup>
-            <optgroup label="Settings">
-              <option value="set usbnet_autostart 1">set usbnet_autostart 1</option>
-              <option value="set usbnet_autostart 0">set usbnet_autostart 0</option>
-              <option value="get all">get all</option>
-            </optgroup>
-            <optgroup label="Info">
-              <option value="status">status</option>
-            </optgroup>
-          </select>
-          <button id="cpSendBtn">Send</button>
-          <button id="cpClearBtn" style="background:transparent;color:var(--ash);border:1px solid #333;padding:5px 10px;font-size:11px;cursor:pointer;border-radius:3px;">Clear</button>
-        </div>
-        <div class="cp-output" id="cpOutput"></div>
-        <div class="cp-input-row">
-          <span class="cp-prompt">›</span>
-          <input class="cp-input" id="cpInput" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false" disabled>
+        <div class="split-panes">
+          <!-- Left pane: Logs (read-only stream) -->
+          <div class="pane">
+            <div class="pane-header">
+              <h3>Logs</h3>
+              <button id="logClearBtn">Clear</button>
+            </div>
+            <div class="pane-output" id="logOutput"></div>
+          </div>
+          <!-- Right pane: Console (commands + responses) -->
+          <div class="pane">
+            <div class="pane-header">
+              <h3>Console</h3>
+              <button id="conClearBtn">Clear</button>
+            </div>
+            <div class="pane-output" id="conOutput"></div>
+            <div class="console-toolbar">
+              <select id="cmdSelect">
+                <option value="">▾ Quick commands…</option>
+                <optgroup label="Scan Modes">
+                  <option value="stop">Auto cycle → stop</option>
+                  <option value="scanap">Wi-Fi scan → scanap</option>
+                  <option value="blescan -f">BLE filtered → blescan -f</option>
+                  <option value="blescan -a">BLE all → blescan -a</option>
+                  <option value="capture -skimmer">Skimmer → capture -skimmer</option>
+                  <option value="pineap">Pineapple → pineap</option>
+                  <option value="wardrive">Wardrive → wardrive</option>
+                </optgroup>
+                <optgroup label="USB Network">
+                  <option value="usbnet on">usbnet on</option>
+                  <option value="usbnet off">usbnet off</option>
+                  <option value="usbnet status">usbnet status</option>
+                </optgroup>
+                <optgroup label="Settings">
+                  <option value="set usbnet_autostart 1">set usbnet_autostart 1</option>
+                  <option value="set usbnet_autostart 0">set usbnet_autostart 0</option>
+                  <option value="get all">get all</option>
+                </optgroup>
+                <optgroup label="Info">
+                  <option value="status">status</option>
+                </optgroup>
+              </select>
+              <button class="ct-send" id="cmdSendBtn">Send</button>
+            </div>
+            <div class="console-input-row">
+              <span class="ci-prompt">›</span>
+              <input class="ci-input" id="cmdInput" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false" disabled>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -618,36 +695,66 @@
         .catch(() => {});
 
       /* ================================================================
-         Standalone Serial Console — completely separate from esp-web-tools
-         Logs. Uses its own Web Serial connection.
+         Split Serial: Logs pane (all output) + Console pane (commands
+         + responses only, log lines filtered out).
+         Shares ONE Web Serial connection.
          ================================================================ */
       (function() {
         let port = null;
         let reader = null;
         let readLoop = null;
-        const output   = document.getElementById('cpOutput');
-        const input    = document.getElementById('cpInput');
-        const select   = document.getElementById('cpCmdSelect');
-        const sendBtn  = document.getElementById('cpSendBtn');
-        const clearBtn = document.getElementById('cpClearBtn');
-        const connBtn  = document.getElementById('cpConnectBtn');
-        const dot      = document.getElementById('cpDot');
-        const state    = document.getElementById('cpState');
+        let awaitingResponse = false;
+        let responseTimer = null;
+
+        const logOut   = document.getElementById('logOutput');
+        const conOut   = document.getElementById('conOutput');
+        const input    = document.getElementById('cmdInput');
+        const select   = document.getElementById('cmdSelect');
+        const sendBtn  = document.getElementById('cmdSendBtn');
+        const logClear = document.getElementById('logClearBtn');
+        const conClear = document.getElementById('conClearBtn');
+        const connBtn  = document.getElementById('shConnectBtn');
+        const dot      = document.getElementById('shDot');
+        const stateEl  = document.getElementById('shState');
+
+        /* Log lines from ESP-IDF / Arduino typically look like:
+           [17:11:21] 21257 [I][BLEScan.cpp:683] ...
+           or start with E (mmm) / I (mmm) / D (mmm) etc. */
+        const LOG_RE = /^\[?\d{1,2}:\d{2}:\d{2}|^\s*\[\d+\]\s*\[|^[EWID]\s*\(\d+\)/;
 
         function setConnected(on) {
           dot.classList.toggle('connected', on);
-          state.textContent = on ? 'connected' : 'disconnected';
+          stateEl.textContent = on ? 'connected' : 'disconnected';
           connBtn.textContent = on ? 'Disconnect' : 'Connect';
           input.disabled = !on;
           if (on) input.focus();
         }
 
-        function appendOutput(text, cls) {
+        function appendTo(target, text, cls) {
           const span = document.createElement('span');
           if (cls) span.className = cls;
           span.textContent = text;
-          output.appendChild(span);
-          output.scrollTop = output.scrollHeight;
+          target.appendChild(span);
+          target.scrollTop = target.scrollHeight;
+        }
+
+        let lineBuf = '';
+        function processChunk(text) {
+          lineBuf += text;
+          const lines = lineBuf.split('\n');
+          lineBuf = lines.pop(); // keep incomplete last line in buffer
+          for (const line of lines) {
+            const full = line + '\n';
+            /* Always goes to Logs pane */
+            appendTo(logOut, full, 'log-line');
+
+            /* Console pane: show only non-log lines (command responses) */
+            if (awaitingResponse && !LOG_RE.test(line.trim())) {
+              if (line.trim().length > 0) {
+                appendTo(conOut, full, 'cmd-response');
+              }
+            }
+          }
         }
 
         async function startReading() {
@@ -658,11 +765,9 @@
             while (true) {
               const { value, done } = await reader.read();
               if (done) break;
-              if (value) appendOutput(value);
+              if (value) processChunk(value);
             }
-          } catch (e) {
-            /* port closed or disconnected */
-          }
+          } catch (e) { /* port closed */ }
         }
 
         async function connect() {
@@ -671,16 +776,18 @@
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: 115200 });
             setConnected(true);
-            appendOutput('— Connected —\n', 'cmd-echo');
+            appendTo(logOut, '— Connected —\n', 'cmd-echo');
+            appendTo(conOut, '— Connected —\n', 'cmd-echo');
             startReading();
             port.addEventListener('disconnect', () => {
               setConnected(false);
-              appendOutput('\n— Disconnected —\n', 'cmd-echo');
+              appendTo(logOut, '\n— Disconnected —\n', 'cmd-echo');
+              appendTo(conOut, '\n— Disconnected —\n', 'cmd-echo');
               port = null;
             });
           } catch (e) {
             if (e.name !== 'NotFoundError') {
-              appendOutput('Error: ' + e.message + '\n', 'cmd-echo');
+              appendTo(conOut, 'Error: ' + e.message + '\n', 'cmd-echo');
             }
           }
         }
@@ -693,14 +800,19 @@
           } catch (e) { /* ignore */ }
           port = null;
           setConnected(false);
-          appendOutput('\n— Disconnected —\n', 'cmd-echo');
+          appendTo(logOut, '\n— Disconnected —\n', 'cmd-echo');
+          appendTo(conOut, '\n— Disconnected —\n', 'cmd-echo');
         }
 
         async function sendCommand(cmd) {
           if (!port || !port.writable || !cmd) return;
           const writer = port.writable.getWriter();
           const encoder = new TextEncoder();
-          appendOutput('> ' + cmd + '\n', 'cmd-echo');
+          appendTo(conOut, '> ' + cmd + '\n', 'cmd-echo');
+          /* Open a response window — capture non-log lines for ~2 sec */
+          awaitingResponse = true;
+          clearTimeout(responseTimer);
+          responseTimer = setTimeout(() => { awaitingResponse = false; }, 2000);
           await writer.write(encoder.encode(cmd + '\r\n'));
           writer.releaseLock();
         }
@@ -735,9 +847,8 @@
           }
         });
 
-        clearBtn.addEventListener('click', () => {
-          output.textContent = '';
-        });
+        logClear.addEventListener('click', () => { logOut.textContent = ''; });
+        conClear.addEventListener('click', () => { conOut.textContent = ''; });
       })();
     </script>
   </body>
