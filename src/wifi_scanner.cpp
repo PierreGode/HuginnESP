@@ -1,7 +1,6 @@
 #include "wifi_scanner.h"
 #include "config.h"
 #include "runtime_config.h"
-#include "scan_event_bus.h"
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -126,19 +125,6 @@ void wifi_scanner_process() {
         Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
                       net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
         Serial.flush();
-
-        // Mirror into the event bus for the web/WebSocket sink. Numeric
-        // auth maps to scanModeName-side enum: 0=Open 1=WEP 2=WPA 3=WPA2
-        // 4=WPA/WPA2 5=WPA2-Ent 6=WPA3 — kept compact for the bus.
-        uint8_t authCode = 0;
-        if      (net.security == "WEP")             authCode = 1;
-        else if (net.security == "WPA")             authCode = 2;
-        else if (net.security == "WPA2")            authCode = 3;
-        else if (net.security == "WPA/WPA2")        authCode = 4;
-        else if (net.security == "WPA2-Enterprise") authCode = 5;
-        else if (net.security == "WPA3")            authCode = 6;
-        scan_event_bus_push_wifi(net.bssid.c_str(), net.ssid.c_str(),
-                                 (int8_t)net.rssi, (uint8_t)net.channel, authCode);
 
         // Track for evil-twin detection
         s_ssidMap[net.ssid].push_back(net.bssid);

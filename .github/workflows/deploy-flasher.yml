@@ -15,35 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ---------------------------------------------------------------
-  # 1. Detect what changed so we can skip firmware builds when only
-  #    docs/ was touched.
-  # ---------------------------------------------------------------
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      firmware: ${{ steps.filter.outputs.firmware }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            firmware:
-              - 'src/**'
-              - 'platformio.ini'
-              - 'default_16MB.csv'
-              - 'pre_build_cert.py'
-              - 'sdkconfig*'
-              - 'lib/**'
-              - 'include/**'
-
-  # ---------------------------------------------------------------
-  # 2a. Build ESP32-S3 firmware (skipped for docs-only changes)
-  # ---------------------------------------------------------------
-  build-s3:
-    needs: changes
-    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,8 +30,8 @@ jobs:
           path: |
             ~/.platformio
             ~/.cache/pip
-          key: pio-s3-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: pio-s3-${{ runner.os }}-
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
 
       - name: Install PlatformIO
         run: |
@@ -69,60 +41,36 @@ jobs:
       - name: Build firmware (ESP32-S3)
         run: pio run -e esp32s3box
 
-      - name: Create merged image
+      - name: Build firmware (ESP32-C5)
+        run: pio run -e esp32c5
+
+      - name: Stage site
         run: |
+          mkdir -p site/firmware
+          cp -r docs/. site/
+
           BOOT_APP0=$(find ~/.platformio/packages -name boot_app0.bin | head -n 1)
+          if [ -z "$BOOT_APP0" ]; then
+            echo "boot_app0.bin not found"; exit 1
+          fi
+
+          # ---- ESP32-S3 merged image ----
           S3_DIR=.pio/build/esp32s3box
           python -m esptool --chip esp32s3 merge_bin \
-            --output huginn-esp32s3.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 16MB \
+            --output site/firmware/huginn-esp32s3.bin \
+            --flash_mode dio --flash_freq 80m --flash_size 8MB \
             0x0000   "$S3_DIR/bootloader.bin" \
             0x8000   "$S3_DIR/partitions.bin" \
             0xe000   "$BOOT_APP0" \
             0x10000  "$S3_DIR/firmware.bin"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: firmware-s3
-          path: huginn-esp32s3.bin
-
-  # ---------------------------------------------------------------
-  # 2b. Build ESP32-C5 firmware (skipped for docs-only changes)
-  # ---------------------------------------------------------------
-  build-c5:
-    needs: changes
-    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Cache PlatformIO
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.platformio
-            ~/.cache/pip
-          key: pio-c5-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: pio-c5-${{ runner.os }}-
-
-      - name: Install PlatformIO
-        run: |
-          python -m pip install --upgrade pip
-          pip install platformio esptool
-
-      - name: Build firmware (ESP32-C5)
-        run: pio run -e esp32c5
-
-      - name: Create merged image
-        run: |
-          BOOT_APP0=$(find ~/.platformio/packages -name boot_app0.bin | head -n 1)
+          # ---- ESP32-C5 merged image ----
+          # ESP32-C5 second-stage bootloader lives at flash 0x2000 (not 0x0
+          # like S3/C6). --target-offset 0x0 pads the merged file from 0 so
+          # the manifest can still flash it at offset 0.
           C5_DIR=.pio/build/esp32c5
           python -m esptool --chip esp32c5 merge_bin \
-            --output huginn-esp32c5.bin \
+            --output site/firmware/huginn-esp32c5.bin \
             --flash_mode dio --flash_freq 80m --flash_size 16MB \
             --target-offset 0x0 \
             0x2000   "$C5_DIR/bootloader.bin" \
@@ -130,66 +78,12 @@ jobs:
             0xe000   "$BOOT_APP0" \
             0x10000  "$C5_DIR/firmware.bin"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: firmware-c5
-          path: huginn-esp32c5.bin
-
-  # ---------------------------------------------------------------
-  # 3. Deploy site — always runs, uses fresh firmware if built,
-  #    otherwise fetches existing bins from the live Pages site.
-  # ---------------------------------------------------------------
-  deploy:
-    needs: [changes, build-s3, build-c5]
-    if: always() && !failure() && !cancelled()
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Stage site
-        run: |
-          mkdir -p site/firmware
-          cp -r docs/. site/
-
-      - name: Download fresh firmware (S3)
-        if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-        uses: actions/download-artifact@v4
-        with:
-          name: firmware-s3
-          path: site/firmware
-
-      - name: Download fresh firmware (C5)
-        if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
-        uses: actions/download-artifact@v4
-        with:
-          name: firmware-c5
-          path: site/firmware
-
-      - name: Fetch existing firmware from Pages (docs-only change)
-        if: needs.changes.outputs.firmware != 'true' && github.event_name != 'workflow_dispatch'
-        run: |
-          PAGES_URL="https://pierregode.github.io/HuginnESP/firmware"
-          echo "Fetching existing firmware from $PAGES_URL ..."
-          curl -fSL "$PAGES_URL/huginn-esp32s3.bin" -o site/firmware/huginn-esp32s3.bin || echo "⚠ S3 firmware not found on Pages"
-          curl -fSL "$PAGES_URL/huginn-esp32c5.bin" -o site/firmware/huginn-esp32c5.bin || echo "⚠ C5 firmware not found on Pages"
-
-      - name: Stamp version
-        run: |
           VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
           echo "Version: $VERSION"
 
           for m in manifest-esp32s3.json manifest-esp32c5.json; do
-            if [ -f "site/$m" ]; then
-              python3 -c "
-          import json, sys
-          with open('site/$m') as f: d = json.load(f)
-          d['version'] = '$VERSION'
-          with open('site/$m', 'w') as f: json.dump(d, f, indent=2)
-          "
-            fi
+            jq --arg v "$VERSION" '.version = $v' "site/$m" > "site/$m.tmp"
+            mv "site/$m.tmp" "site/$m"
           done
 
           echo "{\"build\":\"$VERSION\",\"sha\":\"${GITHUB_SHA::7}\",\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > site/version.json

@@ -19,7 +19,6 @@ extern volatile uint32_t g_wifiScanDurationMs;
 extern volatile uint32_t g_bleSpamThreshold;
 extern volatile uint32_t g_wardriveWifiMs;
 extern volatile uint32_t g_wardriveBleMs;
-extern volatile uint32_t g_usbnetAutostart;  // 0 = off at boot, 1 = bring NCM up automatically
 
 bool   isSkimmerName(const String& name);
 String getSkimmerNamesCsv();
