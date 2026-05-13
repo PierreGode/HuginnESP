@@ -40,7 +40,17 @@
 #include <Arduino.h>
 #include <string.h>
 
-#if HUGINN_BOARD_S3
+#ifndef HUGINN_USBNET
+  #define HUGINN_USBNET 0
+#endif
+
+// The NCM bring-up touches arduino-esp32's USB internals + raw TinyUSB +
+// lwIP + esp_netif. That stack is gated together so the rest of the
+// firmware compiles cleanly whether or not the framework was rebuilt
+// with CONFIG_TINYUSB_NET_MODE_NCM=y.
+#define HUGINN_USBNET_ACTIVE  (HUGINN_BOARD_S3 && HUGINN_USBNET)
+
+#if HUGINN_USBNET_ACTIVE
   #include "tinyusb.h"
   #include "tinyusb_net.h"
   #include "esp_netif.h"
@@ -48,7 +58,6 @@
   #include "esp_log.h"
   #include "esp_mac.h"
   #include "lwip/esp_netif_net_stack.h"
-  #include "lwip/lwip_napt.h"
   #include "mdns.h"
 #endif
 
@@ -58,13 +67,13 @@
 static const char* TAG = "huginn_usbnet";
 static bool s_enabled = false;
 
-#if HUGINN_BOARD_S3
+#if HUGINN_USBNET_ACTIVE
 static esp_netif_t* s_netif = nullptr;
 static TaskHandle_t s_tick_task = nullptr;
 #endif
 
 bool usb_net_is_supported() {
-#if HUGINN_BOARD_S3
+#if HUGINN_USBNET_ACTIVE
     return true;
 #else
     return false;
@@ -80,7 +89,7 @@ String usb_net_status_json() {
     s += usb_net_is_supported() ? "true" : "false";
     s += ",\"enabled\":";
     s += s_enabled ? "true" : "false";
-#if HUGINN_BOARD_S3
+#if HUGINN_USBNET_ACTIVE
     if (s_enabled && s_netif) {
         esp_netif_ip_info_t ip = {};
         if (esp_netif_get_ip_info(s_netif, &ip) == ESP_OK) {
@@ -89,12 +98,14 @@ String usb_net_status_json() {
             s += ",\"ip\":\""; s += ipstr; s += "\"";
         }
     }
+#else
+    s += ",\"stage\":\"scaffold\"";
 #endif
     s += "}";
     return s;
 }
 
-#if HUGINN_BOARD_S3
+#if HUGINN_USBNET_ACTIVE
 
 // ---------- TinyUSB NCM -> lwIP plumbing ----------
 
@@ -298,18 +309,22 @@ static void ncm_teardown() {
     }
 }
 
-#endif // HUGINN_BOARD_S3
+#endif // HUGINN_USBNET_ACTIVE
 
 bool usb_net_enable() {
     if (!usb_net_is_supported()) {
+#if HUGINN_BOARD_S3 && !HUGINN_USBNET
+        Serial.println("{\"warn\":\"usbnet compiled out (HUGINN_USBNET=0); flip the build flag + uncomment custom_sdkconfig to enable\"}");
+#else
         Serial.println("{\"error\":\"usbnet not supported on this board\"}");
+#endif
         return false;
     }
     if (s_enabled) {
         Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"already on\"}");
         return true;
     }
-#if HUGINN_BOARD_S3
+#if HUGINN_USBNET_ACTIVE
     s_enabled = true;
     if (!ncm_bringup()) {
         s_enabled = false;
@@ -328,7 +343,7 @@ bool usb_net_disable() {
         Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"already off\"}");
         return true;
     }
-#if HUGINN_BOARD_S3
+#if HUGINN_USBNET_ACTIVE
     ncm_teardown();
     Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"off\"}");
     return true;
