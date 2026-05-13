@@ -345,6 +345,131 @@
         h1 { letter-spacing: 0.12em; }
         .ritual { padding: 1.5rem 1rem; }
       }
+
+      /* ---- Serial Console panel ---- */
+      .console-panel {
+        margin-top: 2rem;
+        border: 1px solid rgba(200,163,93,0.2);
+        border-radius: 4px;
+        background: linear-gradient(180deg, rgba(21,17,13,0.9) 0%, rgba(10,9,8,0.9) 100%);
+        overflow: hidden;
+      }
+      .console-panel .cp-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba(200,163,93,0.15);
+      }
+      .console-panel .cp-header h2 {
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        color: var(--bronze);
+        margin: 0;
+      }
+      .console-panel .cp-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: var(--ash);
+      }
+      .console-panel .cp-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: var(--ash);
+        transition: background 0.3s;
+      }
+      .console-panel .cp-dot.connected { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+      .console-panel .cp-connect {
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--bronze);
+        background: transparent;
+        border: 1px solid var(--bronze-dim);
+        padding: 0.35rem 1rem;
+        cursor: pointer;
+        border-radius: 2px;
+      }
+      .console-panel .cp-connect:hover { background: rgba(200,163,93,0.1); }
+      .console-panel .cp-toolbar {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid rgba(200,163,93,0.1);
+        flex-wrap: wrap;
+      }
+      .console-panel .cp-toolbar select {
+        background: #111;
+        color: var(--bone);
+        border: 1px solid #333;
+        border-radius: 3px;
+        padding: 5px 8px;
+        font-size: 12px;
+        font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
+        cursor: pointer;
+        flex: 1;
+        min-width: 180px;
+        max-width: 320px;
+      }
+      .console-panel .cp-toolbar button {
+        background: var(--bronze);
+        color: var(--ink);
+        border: none;
+        border-radius: 3px;
+        padding: 5px 14px;
+        font-size: 12px;
+        font-family: "Cinzel",serif;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .console-panel .cp-toolbar button:hover { filter: brightness(1.1); }
+      .console-panel .cp-output {
+        height: 220px;
+        overflow-y: auto;
+        padding: 0.6rem 1rem;
+        font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--bone-dim);
+        background: #0a0908;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .console-panel .cp-output .cmd-echo {
+        color: var(--accent);
+      }
+      .console-panel .cp-input-row {
+        display: flex;
+        border-top: 1px solid rgba(200,163,93,0.1);
+      }
+      .console-panel .cp-prompt {
+        padding: 0.5rem 0 0.5rem 1rem;
+        color: var(--bronze);
+        font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
+        font-size: 13px;
+        user-select: none;
+      }
+      .console-panel .cp-input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--bone);
+        font-family: "JetBrains Mono","SF Mono",Consolas,monospace;
+        font-size: 13px;
+        padding: 0.5rem 0.5rem;
+      }
+      .console-panel .cp-input::placeholder { color: var(--ash); }
     </style>
   </head>
   <body>
@@ -414,6 +539,58 @@
       </section>
 
       <footer class="skald">
+
+      <!-- ── Serial Console ── -->
+      <div class="divider" aria-hidden="true"><span>ᚱ</span></div>
+
+      <section class="console-panel" id="consolePanel">
+        <div class="cp-header">
+          <h2>Serial Console</h2>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="cp-status">
+              <span class="cp-dot" id="cpDot"></span>
+              <span id="cpState">disconnected</span>
+            </div>
+            <button class="cp-connect" id="cpConnectBtn">Connect</button>
+          </div>
+        </div>
+        <div class="cp-toolbar">
+          <select id="cpCmdSelect">
+            <option value="">▾ Quick commands…</option>
+            <optgroup label="Scan Modes">
+              <option value="stop">Auto cycle  →  stop</option>
+              <option value="scanap">Wi-Fi scan  →  scanap</option>
+              <option value="blescan -f">BLE filtered  →  blescan -f</option>
+              <option value="blescan -a">BLE all  →  blescan -a</option>
+              <option value="capture -skimmer">Skimmer detect  →  capture -skimmer</option>
+              <option value="pineap">Pineapple detect  →  pineap</option>
+              <option value="wardrive">Wardrive  →  wardrive</option>
+            </optgroup>
+            <optgroup label="USB Network">
+              <option value="usbnet on">usbnet on</option>
+              <option value="usbnet off">usbnet off</option>
+              <option value="usbnet status">usbnet status</option>
+            </optgroup>
+            <optgroup label="Settings">
+              <option value="set usbnet_autostart 1">set usbnet_autostart 1</option>
+              <option value="set usbnet_autostart 0">set usbnet_autostart 0</option>
+              <option value="get all">get all</option>
+            </optgroup>
+            <optgroup label="Info">
+              <option value="status">status</option>
+            </optgroup>
+          </select>
+          <button id="cpSendBtn">Send</button>
+          <button id="cpClearBtn" style="background:transparent;color:var(--ash);border:1px solid #333;padding:5px 10px;font-size:11px;cursor:pointer;border-radius:3px;">Clear</button>
+        </div>
+        <div class="cp-output" id="cpOutput"></div>
+        <div class="cp-input-row">
+          <span class="cp-prompt">›</span>
+          <input class="cp-input" id="cpInput" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false" disabled>
+        </div>
+      </section>
+
+      <footer class="skald">
         <div class="row">
           Vessels:
           <code>Waveshare ESP32-S3-Touch-LCD-4B</code>
@@ -440,225 +617,127 @@
         })
         .catch(() => {});
 
-      /* ---- Logs & Console: inject dropdown + rename header ---- */
-      (function patchConsole() {
-        const commands = [
-          { label: '── Scan Modes ──', disabled: true },
-          { label: 'Auto cycle',           cmd: 'stop' },
-          { label: 'Wi-Fi scan',           cmd: 'scanap' },
-          { label: 'BLE filtered',         cmd: 'blescan -f' },
-          { label: 'BLE all',              cmd: 'blescan -a' },
-          { label: 'Skimmer detect',       cmd: 'capture -skimmer' },
-          { label: 'Pineapple detect',     cmd: 'pineap' },
-          { label: 'Wardrive',             cmd: 'wardrive' },
-          { label: '── USB Network ──', disabled: true },
-          { label: 'usbnet on',            cmd: 'usbnet on' },
-          { label: 'usbnet off',           cmd: 'usbnet off' },
-          { label: 'usbnet status',        cmd: 'usbnet status' },
-          { label: '── Settings ──', disabled: true },
-          { label: 'set usbnet_autostart 1',  cmd: 'set usbnet_autostart 1' },
-          { label: 'set usbnet_autostart 0',  cmd: 'set usbnet_autostart 0' },
-          { label: 'get all',              cmd: 'get all' },
-          { label: '── Info ──', disabled: true },
-          { label: 'status',               cmd: 'status' },
-        ];
+      /* ================================================================
+         Standalone Serial Console — completely separate from esp-web-tools
+         Logs. Uses its own Web Serial connection.
+         ================================================================ */
+      (function() {
+        let port = null;
+        let reader = null;
+        let readLoop = null;
+        const output   = document.getElementById('cpOutput');
+        const input    = document.getElementById('cpInput');
+        const select   = document.getElementById('cpCmdSelect');
+        const sendBtn  = document.getElementById('cpSendBtn');
+        const clearBtn = document.getElementById('cpClearBtn');
+        const connBtn  = document.getElementById('cpConnectBtn');
+        const dot      = document.getElementById('cpDot');
+        const state    = document.getElementById('cpState');
 
-        /* Walk all shadow roots recursively to find elements */
-        function deepQuery(root, selector) {
-          let result = root.querySelector(selector);
-          if (result) return result;
-          const children = root.querySelectorAll('*');
-          for (const child of children) {
-            if (child.shadowRoot) {
-              result = deepQuery(child.shadowRoot, selector);
-              if (result) return result;
-            }
-          }
-          return null;
+        function setConnected(on) {
+          dot.classList.toggle('connected', on);
+          state.textContent = on ? 'connected' : 'disconnected';
+          connBtn.textContent = on ? 'Disconnect' : 'Connect';
+          input.disabled = !on;
+          if (on) input.focus();
         }
 
-        function deepQueryAll(root, selector) {
-          let results = [...root.querySelectorAll(selector)];
-          const children = root.querySelectorAll('*');
-          for (const child of children) {
-            if (child.shadowRoot) {
-              results = results.concat(deepQueryAll(child.shadowRoot, selector));
-            }
-          }
-          return results;
+        function appendOutput(text, cls) {
+          const span = document.createElement('span');
+          if (cls) span.className = cls;
+          span.textContent = text;
+          output.appendChild(span);
+          output.scrollTop = output.scrollHeight;
         }
 
-        function findPort() {
-          /* esp-web-tools uses the Web Serial port directly; grab it from
-             the ewt-install-dialog or esp-web-install-button elements */
-          const dialogs = document.querySelectorAll('ewt-install-dialog, esp-web-install-dialog');
-          for (const d of dialogs) {
-            if (d.port) return d.port;
-            if (d._port) return d._port;
+        async function startReading() {
+          const decoder = new TextDecoderStream();
+          readLoop = port.readable.pipeTo(decoder.writable);
+          reader = decoder.readable.getReader();
+          try {
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              if (value) appendOutput(value);
+            }
+          } catch (e) {
+            /* port closed or disconnected */
           }
-          return null;
         }
 
-        let injected = false;
-
-        function tryInject() {
-          if (injected) return;
-
-          /* Rename "Logs" -> "Logs & Console" in any shadow root */
-          deepQueryAll(document, '*').forEach(el => {
-            if (el.children && el.children.length === 0 &&
-                el.textContent && el.textContent.trim() === 'Logs') {
-              el.textContent = 'Logs & Console';
-            }
-          });
-
-          /* Find the input — could be input, [contenteditable], or textarea */
-          let input = deepQuery(document, 'input[type="text"]')
-                   || deepQuery(document, 'input:not([type="hidden"]):not([type="file"])')
-                   || deepQuery(document, 'textarea')
-                   || deepQuery(document, '[contenteditable]');
-
-          /* Also look for the ewt console's specific structure: a div with
-             the > prompt. The input is typically next to it. */
-          if (!input) {
-            const prompts = deepQueryAll(document, 'span, div');
-            for (const p of prompts) {
-              if (p.textContent.trim() === '>' && p.nextElementSibling) {
-                const sib = p.nextElementSibling;
-                if (sib.tagName === 'INPUT' || sib.tagName === 'TEXTAREA' ||
-                    sib.contentEditable === 'true') {
-                  input = sib;
-                  break;
-                }
-              }
+        async function connect() {
+          if (port) { await disconnect(); return; }
+          try {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 115200 });
+            setConnected(true);
+            appendOutput('— Connected —\n', 'cmd-echo');
+            startReading();
+            port.addEventListener('disconnect', () => {
+              setConnected(false);
+              appendOutput('\n— Disconnected —\n', 'cmd-echo');
+              port = null;
+            });
+          } catch (e) {
+            if (e.name !== 'NotFoundError') {
+              appendOutput('Error: ' + e.message + '\n', 'cmd-echo');
             }
           }
-
-          /* Find the container with action links (Reset Device, Download Logs, Back) */
-          const actionLinks = deepQueryAll(document, 'a, button');
-          let actionBar = null;
-          for (const link of actionLinks) {
-            if (link.textContent && link.textContent.trim() === 'Download Logs') {
-              actionBar = link.parentElement;
-              break;
-            }
-          }
-
-          const anchor = actionBar || (input && input.parentElement);
-          if (!anchor) return;
-
-          /* Don't inject twice */
-          if (anchor.querySelector && anchor.querySelector('.huginn-cmd-bar')) return;
-          const root = anchor.getRootNode();
-          if (root !== document && root.querySelector && root.querySelector('.huginn-cmd-bar')) return;
-
-          const bar = document.createElement('div');
-          bar.className = 'huginn-cmd-bar';
-          bar.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 12px;flex-wrap:wrap;';
-
-          const select = document.createElement('select');
-          select.style.cssText =
-            'background:#1a1a1a;color:#e8e2d4;border:1px solid #444;border-radius:3px;' +
-            'padding:5px 8px;font-size:13px;font-family:monospace;cursor:pointer;flex:1;min-width:200px;max-width:320px;';
-          const defaultOpt = document.createElement('option');
-          defaultOpt.textContent = '▾ Quick commands…';
-          defaultOpt.value = '';
-          select.appendChild(defaultOpt);
-
-          commands.forEach(c => {
-            const opt = document.createElement('option');
-            if (c.disabled) {
-              opt.disabled = true;
-              opt.textContent = c.label;
-            } else {
-              opt.value = c.cmd;
-              opt.textContent = c.label + '  →  ' + c.cmd;
-            }
-            select.appendChild(opt);
-          });
-
-          const sendBtn = document.createElement('button');
-          sendBtn.textContent = 'Send';
-          sendBtn.style.cssText =
-            'background:#c8a35d;color:#0a0908;border:none;border-radius:3px;' +
-            'padding:5px 16px;font-size:13px;font-family:"Cinzel",serif;font-weight:600;' +
-            'letter-spacing:0.1em;cursor:pointer;white-space:nowrap;';
-
-          async function sendCommand(cmd) {
-            if (!cmd) return;
-
-            /* Method 1: Fill the input and press Enter */
-            if (input) {
-              const nativeSetter = Object.getOwnPropertyDescriptor(
-                HTMLInputElement.prototype, 'value'
-              );
-              if (nativeSetter && nativeSetter.set) {
-                nativeSetter.set.call(input, cmd);
-              } else {
-                input.value = cmd;
-              }
-              input.dispatchEvent(new Event('input', { bubbles: true }));
-              input.dispatchEvent(new KeyboardEvent('keydown',  { key:'Enter', code:'Enter', keyCode:13, bubbles:true }));
-              input.dispatchEvent(new KeyboardEvent('keypress', { key:'Enter', code:'Enter', keyCode:13, bubbles:true }));
-              input.dispatchEvent(new KeyboardEvent('keyup',    { key:'Enter', code:'Enter', keyCode:13, bubbles:true }));
-            }
-
-            /* Method 2: Write directly to the serial port */
-            if (!input) {
-              const port = findPort();
-              if (port && port.writable) {
-                const writer = port.writable.getWriter();
-                const encoder = new TextEncoder();
-                await writer.write(encoder.encode(cmd + '\n'));
-                writer.releaseLock();
-              }
-            }
-
-            setTimeout(() => { select.selectedIndex = 0; }, 200);
-          }
-
-          select.addEventListener('change', () => {
-            if (select.value && input) {
-              const nativeSetter = Object.getOwnPropertyDescriptor(
-                HTMLInputElement.prototype, 'value'
-              );
-              if (nativeSetter && nativeSetter.set) {
-                nativeSetter.set.call(input, select.value);
-              } else {
-                input.value = select.value;
-              }
-              input.dispatchEvent(new Event('input', { bubbles: true }));
-              input.focus();
-            }
-          });
-
-          sendBtn.addEventListener('click', () => {
-            const cmd = select.value || (input && input.value ? input.value.trim() : '');
-            if (cmd) sendCommand(cmd);
-          });
-
-          bar.appendChild(select);
-          bar.appendChild(sendBtn);
-
-          /* Insert before the action bar, or before the input */
-          if (actionBar) {
-            actionBar.parentElement.insertBefore(bar, actionBar);
-          } else if (input) {
-            input.parentElement.insertBefore(bar, input);
-          }
-          injected = true;
         }
 
-        /* MutationObserver + polling to catch the dialog appearing */
-        const observer = new MutationObserver(() => tryInject());
-        observer.observe(document.body, { childList: true, subtree: true });
+        async function disconnect() {
+          try {
+            if (reader) { await reader.cancel(); reader = null; }
+            if (readLoop) { await readLoop.catch(() => {}); readLoop = null; }
+            if (port) { await port.close(); }
+          } catch (e) { /* ignore */ }
+          port = null;
+          setConnected(false);
+          appendOutput('\n— Disconnected —\n', 'cmd-echo');
+        }
 
-        /* Also poll because shadow DOM changes may not trigger mutations on body */
-        let polls = 0;
-        const poller = setInterval(() => {
-          tryInject();
-          if (injected || ++polls > 100) clearInterval(poller);
-        }, 300);
+        async function sendCommand(cmd) {
+          if (!port || !port.writable || !cmd) return;
+          const writer = port.writable.getWriter();
+          const encoder = new TextEncoder();
+          appendOutput('> ' + cmd + '\n', 'cmd-echo');
+          await writer.write(encoder.encode(cmd + '\r\n'));
+          writer.releaseLock();
+        }
+
+        connBtn.addEventListener('click', connect);
+
+        select.addEventListener('change', () => {
+          if (select.value) {
+            input.value = select.value;
+            input.focus();
+          }
+        });
+
+        sendBtn.addEventListener('click', () => {
+          const cmd = input.value.trim() || select.value;
+          if (cmd) {
+            sendCommand(cmd);
+            input.value = '';
+            select.selectedIndex = 0;
+          }
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const cmd = input.value.trim();
+            if (cmd) {
+              sendCommand(cmd);
+              input.value = '';
+              select.selectedIndex = 0;
+            }
+          }
+        });
+
+        clearBtn.addEventListener('click', () => {
+          output.textContent = '';
+        });
       })();
     </script>
   </body>
