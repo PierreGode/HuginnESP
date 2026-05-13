@@ -111,8 +111,10 @@ void scan_cycle_task(void* param) {
         }
 
         g_currentMode = MODE_WIFI;
+        Serial.printf("[CYCLE] WiFi scan #%d starting (BLE mode %d)\n", wifiScans, (int)nextBle);
         wifi_scanner_start();
         wifi_wait_and_process(g_wifiScanDurationMs);
+        Serial.printf("[CYCLE] WiFi scan #%d done, count=%d\n", wifiScans, wifi_scanner_count());
 
         wifiScans++;
         bleModeIdx = (bleModeIdx + 1) % BLE_ROTATION_LEN;

@@ -213,7 +213,9 @@ void ble_scanner_start(BleMode mode) {
     s_adCounts.clear();
     s_spamWindowStart = millis();
     s_pScan->clearResults();
-    s_pScan->start(0, false); // 0 = indefinite; scan_cycle stops it explicitly
+    // Non-blocking: pass a no-op callback so start() returns immediately.
+    // Duration 0 = indefinite; scan_cycle stops it explicitly via ble_scanner_stop().
+    s_pScan->start(0, [](BLEScanResults){}, false);
 }
 
 void ble_scanner_stop() {

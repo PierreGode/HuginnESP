@@ -52,6 +52,7 @@ void wifi_scanner_init() {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.onEvent(onScanEvent, ARDUINO_EVENT_WIFI_SCAN_DONE);
+    Serial.printf("[WIFI] init done, mode=%d\n", WiFi.getMode());
 }
 
 void wifi_scanner_start() {
@@ -77,8 +78,11 @@ void wifi_scanner_start() {
 
     esp_err_t err = esp_wifi_scan_start(&cfg, /*block=*/false);
     if (err != ESP_OK) {
+        Serial.printf("[WIFI] scan_start FAILED: 0x%x (%s)\n", err, esp_err_to_name(err));
         s_scanning   = false;
         s_scanFailed = true;
+    } else {
+        Serial.println("[WIFI] scan_start OK (async)");
     }
 }
 
@@ -90,6 +94,7 @@ int16_t wifi_scanner_poll() {
 
 void wifi_scanner_process() {
     if (s_scanFailed) {
+        Serial.println("[WIFI] process: scan had failed, resetting");
         s_scanning   = false;
         s_scanFailed = false;
         return;
