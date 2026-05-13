@@ -1,32 +1,27 @@
 // =====================================================================
 //  usb_net.cpp — Ethernet-over-USB (CDC-NCM) host
 //
-//  Implementation strategy for the S3:
-//    * Arduino's auto-init of USB-CDC-on-boot is left in place. When
-//      usbnet is OFF (the default), the device enumerates exactly like
-//      stock HuginnESP — one CDC-ACM interface, Ragnar untouched.
-//    * On `usbnet on`, we ask TinyUSB to add a CDC-NCM network interface
-//      to the live configuration via esp_tinyusb's tinyusb_net_init().
-//      The S3's USB-OTG controller renegotiates with the host, which
-//      then sees both interfaces. Ragnar reconnects (the announce line
-//      fires on every reconnect, which is the documented host pattern).
+//  Design:
+//    * The S3's USB-OTG controller is shared by arduino-esp32's CDC-ACM
+//      port (managed automatically when ARDUINO_USB_CDC_ON_BOOT=1) and
+//      our extra CDC-NCM interface, which we inject via arduino-esp32's
+//      tinyusb_enable_interface2() before USB::begin() runs.
+//    * Registration happens in a __attribute__((constructor)) function
+//      so it executes before arduino-esp32's USB init reads the enabled
+//      interface mask.
+//    * Frames flowing from the host arrive in tud_network_recv_cb() and
+//      are handed to lwIP via an esp_netif "Ethernet" netif. Frames lwIP
+//      wants to send go out through netif_transmit() -> tud_network_xmit.
+//    * esp_netif's built-in DHCP server hands the phone an address in
+//      192.168.7.0/24. mDNS responder publishes "huginn.local" so Safari
+//      can find us without typing an IP.
 //
-//  Implementation strategy for the C5:
-//    * Returns false from usb_net_is_supported(). The current C5 build
-//      uses USB-Serial-JTAG, which is a fixed-function peripheral and
-//      cannot host additional USB classes. Switching the C5 to its
-//      USB-OTG peripheral is a separate project.
+//  The whole stack is gated on HUGINN_USBNET_ACTIVE so the file compiles
+//  cleanly when the framework rebuild with CONFIG_TINYUSB_NET_MODE_NCM
+//  hasn't been opted into.
 //
-//  IP plan on the NCM netif:
-//    Device   192.168.7.1   /24
-//    Phone    192.168.7.2 .. 192.168.7.10  (DHCP pool)
-//    Gateway  192.168.7.1
-//    DNS      192.168.7.1   (mDNS hijack so huginn.local resolves)
-//    mDNS     huginn.local
-//
-//  Some ESP-IDF API call sites in this file are marked HUGINN_TODO:
-//  those are points where the exact signature varies between IDF 5.3
-//  (S3 env) and 5.5 (C5 env) — easy targets to triage on first build.
+//  C5 is unsupported: its current build uses the USB-Serial-JTAG fixed-
+//  function peripheral and cannot host additional USB classes.
 // =====================================================================
 
 #include "usb_net.h"
@@ -44,15 +39,12 @@
   #define HUGINN_USBNET 0
 #endif
 
-// The NCM bring-up touches arduino-esp32's USB internals + raw TinyUSB +
-// lwIP + esp_netif. That stack is gated together so the rest of the
-// firmware compiles cleanly whether or not the framework was rebuilt
-// with CONFIG_TINYUSB_NET_MODE_NCM=y.
 #define HUGINN_USBNET_ACTIVE  (HUGINN_BOARD_S3 && HUGINN_USBNET)
 
 #if HUGINN_USBNET_ACTIVE
-  #include "tinyusb.h"
-  #include "tinyusb_net.h"
+  #include "esp32-hal-tinyusb.h"
+  #include "tusb.h"
+  #include "class/net/net_device.h"
   #include "esp_netif.h"
   #include "esp_event.h"
   #include "esp_log.h"
@@ -63,14 +55,24 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/semphr.h>
 
 static const char* TAG = "huginn_usbnet";
 static bool s_enabled = false;
 
 #if HUGINN_USBNET_ACTIVE
-static esp_netif_t* s_netif = nullptr;
-static TaskHandle_t s_tick_task = nullptr;
+static esp_netif_t*       s_netif        = nullptr;
+static TaskHandle_t       s_tick_task    = nullptr;
+static SemaphoreHandle_t  s_tx_mux       = nullptr;
+static uint8_t            s_mac_str_idx  = 0;
+
+// TinyUSB net class expects this symbol with C linkage at fixed name.
+extern "C" {
+uint8_t tud_network_mac_address[6] = { 0x02, 0x02, 0x42, 0x47, 0x4E, 0x01 };
+}
 #endif
+
+// ---------- Public surface ----------
 
 bool usb_net_is_supported() {
 #if HUGINN_USBNET_ACTIVE
@@ -107,29 +109,118 @@ String usb_net_status_json() {
 
 #if HUGINN_USBNET_ACTIVE
 
-// ---------- TinyUSB NCM -> lwIP plumbing ----------
+// ---------- USB descriptor injection ----------
+//
+// Called by arduino-esp32 when it's stitching together the configuration
+// descriptor. We emit the TinyUSB-provided NCM template (8B IAD + 9+5+5+13+6+7
+// control interface = 53 bytes, plus 9+9+7+7 data interfaces = 32 bytes ⇒
+// TUD_CDC_NCM_DESC_LEN bytes total). The macro fills in interface numbers,
+// endpoint addresses, and the iMACAddress string index.
 
-// TinyUSB delivers an inbound Ethernet frame here. We hand it to
-// esp_netif which forwards it into lwIP for the local stack to chew.
-static esp_err_t tusb_net_rx_cb(void* buffer, uint16_t len, void* ctx) {
-    if (!s_netif) return ESP_FAIL;
-    // Take ownership of the buffer and pass to lwIP via esp_netif.
-    void* buf_copy = malloc(len);
-    if (!buf_copy) return ESP_ERR_NO_MEM;
-    memcpy(buf_copy, buffer, len);
-    esp_err_t err = esp_netif_receive(s_netif, buf_copy, len, NULL);
-    // esp_netif_receive takes ownership when it returns ESP_OK; otherwise free.
-    if (err != ESP_OK) free(buf_copy);
-    return err;
+static uint16_t ncm_descriptor_cb(uint8_t* dst, uint8_t* itf) {
+    uint8_t itf_num    = *itf;
+    uint8_t ep_notif   = tinyusb_get_free_in_endpoint();
+    uint8_t ep_in      = tinyusb_get_free_in_endpoint();
+    uint8_t ep_out     = tinyusb_get_free_out_endpoint();
+    if (!ep_notif || !ep_in || !ep_out) {
+        ESP_LOGE(TAG, "ncm_descriptor_cb: out of endpoints (notif=%u in=%u out=%u)",
+                 ep_notif, ep_in, ep_out);
+        return 0;
+    }
+
+    const uint8_t desc[] = {
+        TUD_CDC_NCM_DESCRIPTOR(itf_num, /*desc_stridx*/ 0, /*mac_stridx*/ s_mac_str_idx,
+                               0x80 | ep_notif, /*ep_notif_size*/ 8,
+                               ep_out, 0x80 | ep_in, /*ep_size*/ 64,
+                               /*maxsegmentsize*/ CFG_TUD_NET_MTU)
+    };
+    memcpy(dst, desc, sizeof(desc));
+    *itf += 2;                       // NCM consumes 2 interface numbers
+    return (uint16_t)sizeof(desc);
 }
 
-// esp_netif wants to transmit a frame. Hand to TinyUSB which packages
-// it into an NCM transfer to the host.
-static esp_err_t netif_transmit_cb(void* h, void* buffer, size_t len) {
-    if (tinyusb_net_send_sync(buffer, len, NULL, pdMS_TO_TICKS(100)) != ESP_OK) {
-        ESP_LOGW(TAG, "ncm tx %u bytes failed", (unsigned)len);
-        return ESP_FAIL;
+// Runs before main() / before arduino-esp32 reads the enabled-interface
+// mask, so by the time USB::begin() builds the descriptor, NCM is in it.
+__attribute__((constructor))
+static void huginn_register_ncm(void) {
+    // Stamp MAC: 02:xx:xx with the bottom 3 bytes from the EFUSE so two
+    // devices on the same Pi don't fight for the same MAC.
+    uint8_t base[6] = {0};
+    esp_efuse_mac_get_default(base);
+    tud_network_mac_address[0] = 0x02;
+    tud_network_mac_address[1] = base[3];
+    tud_network_mac_address[2] = base[4];
+    tud_network_mac_address[3] = base[5];
+    tud_network_mac_address[4] = 0x4E;
+    tud_network_mac_address[5] = 0x01;
+
+    // Register the MAC string descriptor; iMACAddress in the ECM
+    // functional descriptor must point here.
+    char mac_str[13];
+    snprintf(mac_str, sizeof(mac_str), "%02X%02X%02X%02X%02X%02X",
+             tud_network_mac_address[0], tud_network_mac_address[1],
+             tud_network_mac_address[2], tud_network_mac_address[3],
+             tud_network_mac_address[4], tud_network_mac_address[5]);
+    s_mac_str_idx = (uint8_t)tinyusb_add_string_descriptor(mac_str);
+
+    // Ask arduino-esp32 to call us back when it builds the config
+    // descriptor. USB_INTERFACE_VENDOR is the most flexible slot — the
+    // descriptor bytes carry their own bInterfaceClass=0x02 (Comm) so
+    // TinyUSB's NCM driver still picks them up.
+    tinyusb_enable_interface2(USB_INTERFACE_VENDOR,
+                              TUD_CDC_NCM_DESC_LEN,
+                              ncm_descriptor_cb,
+                              /*reserve_endpoints*/ false);
+}
+
+// ---------- TinyUSB net <-> lwIP bridge ----------
+
+// Host -> firmware. Take ownership of the frame, hand to lwIP.
+extern "C" bool tud_network_recv_cb(const uint8_t* src, uint16_t size) {
+    if (!s_netif) {
+        tud_network_recv_renew();
+        return true;
     }
+    void* buf = malloc(size);
+    if (!buf) {
+        // Drop and keep the link healthy.
+        tud_network_recv_renew();
+        return true;
+    }
+    memcpy(buf, src, size);
+    if (esp_netif_receive(s_netif, buf, size, NULL) != ESP_OK) {
+        free(buf);
+    }
+    tud_network_recv_renew();
+    return true;
+}
+
+// Firmware -> host. TinyUSB pulls the next frame from us.
+// We stuff (buffer, length) into the (ref, arg) cookie pair on the xmit
+// call and just memcpy it out here.
+extern "C" uint16_t tud_network_xmit_cb(uint8_t* dst, void* ref, uint16_t arg) {
+    if (ref && arg) memcpy(dst, ref, arg);
+    return arg;
+}
+
+extern "C" void tud_network_init_cb(void) {
+    // Nothing — descriptor + buffers already wired up.
+}
+
+// esp_netif driver: lwIP wants to send a frame.
+static esp_err_t netif_transmit(void* h, void* buffer, size_t len) {
+    if (!s_tx_mux) return ESP_FAIL;
+    if (xSemaphoreTake(s_tx_mux, pdMS_TO_TICKS(100)) != pdTRUE) return ESP_FAIL;
+    int spins = 100;  // up to ~50 ms for the host to drain
+    while (!tud_network_can_xmit(len) && spins-- > 0) {
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (spins <= 0) {
+        xSemaphoreGive(s_tx_mux);
+        return ESP_ERR_TIMEOUT;
+    }
+    tud_network_xmit(buffer, (uint16_t)len);
+    xSemaphoreGive(s_tx_mux);
     return ESP_OK;
 }
 
@@ -137,17 +228,14 @@ static void netif_free_rx_buffer(void* h, void* buffer) {
     free(buffer);
 }
 
-// ---------- Periodic WebSocket tick ----------
-// Pushes a delta envelope to all WS clients ~2 Hz. Newest events first,
-// capped so the payload stays under ~8 KB to fit cleanly in one TCP MSS
-// over USB.
-static void tick_task(void* arg) {
+// ---------- WebSocket tick ----------
+
+static void tick_task(void*) {
     uint32_t last_seq = 0;
     char buf[8192];
     while (s_enabled) {
         uint32_t cur = scan_event_bus_seq();
         if (cur != last_seq) {
-            // Estimate how many new events to send (cap to 64 per tick).
             size_t want = (cur - last_seq);
             if (want > 64) want = 64;
 
@@ -157,11 +245,10 @@ static void tick_task(void* arg) {
             size_t w = 0;
             w += snprintf(buf + w, sizeof(buf) - w,
                 "{\"seq\":%u,\"mode\":\"%s\",\"events\":[",
-                cur, scanModeName(g_currentMode));
+                (unsigned)cur, scanModeName(g_currentMode));
 
             for (size_t i = 0; i < n && w < sizeof(buf) - 200; i++) {
                 const ScanEvent& e = evs[i];
-                // Inline JSON-escape MAC (always safe) + name (may contain quotes).
                 char esc_name[80];
                 size_t j = 0;
                 for (size_t k = 0; e.ssid_or_name[k] && j + 8 < sizeof(esc_name); k++) {
@@ -176,7 +263,7 @@ static void tick_task(void* arg) {
                     "%s{\"type\":%u,\"ts\":%u,\"mac\":\"%s\",\"name\":\"%s\","
                     "\"rssi\":%d,\"channel\":%u,\"auth\":%u,\"flags\":%u",
                     (i == 0) ? "" : ",",
-                    e.type, e.ts_ms, e.mac, esc_name,
+                    e.type, (unsigned)e.ts_ms, e.mac, esc_name,
                     (int)e.rssi, e.channel, e.auth, e.flags);
                 if (e.gps_fix) {
                     w += snprintf(buf + w, sizeof(buf) - w,
@@ -195,33 +282,15 @@ static void tick_task(void* arg) {
     vTaskDelete(NULL);
 }
 
-// ---------- Bring-up ----------
+// ---------- Bring-up / tear-down ----------
 
 static bool ncm_bringup() {
-    static bool s_one_shot_init = false;
-    if (s_one_shot_init) {
-        // TinyUSB driver only installs once per boot.
-        ESP_LOGI(TAG, "tinyusb already installed; reattaching netif only");
-    } else {
-        // HUGINN_TODO(s3): tinyusb_driver_install signature in pioarduino
-        // 53.03.13 may already be called by arduino-esp32's CDC-on-boot path.
-        // In that case this call is redundant; the underlying installer is
-        // idempotent across recent IDF versions but log an error and continue.
-        tinyusb_config_t tusb_cfg = {};
-        tusb_cfg.external_phy = false;
-        esp_err_t err = tinyusb_driver_install(&tusb_cfg);
-        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-            ESP_LOGE(TAG, "tinyusb_driver_install failed: %d", err);
-            return false;
-        }
-        s_one_shot_init = true;
-    }
+    if (!s_tx_mux) s_tx_mux = xSemaphoreCreateMutex();
 
-    if (esp_netif_init() != ESP_OK) {
-        ESP_LOGW(TAG, "esp_netif_init returned non-OK (may be already initialized)");
-    }
-    // Default event loop is created by arduino-esp32 at boot — esp_event_loop_create_default()
-    // would return ESP_ERR_INVALID_STATE here, which is fine.
+    // esp_netif core may already be initialized by arduino-esp32's WiFi
+    // bring-up path; both calls are idempotent (return ESP_ERR_INVALID_STATE
+    // when already done) and we don't propagate that as an error.
+    esp_netif_init();
     esp_event_loop_create_default();
 
     if (!s_netif) {
@@ -233,16 +302,14 @@ static bool ncm_bringup() {
         esp_netif_inherent_config_t base_cfg = {};
         base_cfg.flags         = (esp_netif_flags_t)(ESP_NETIF_DHCP_SERVER | ESP_NETIF_FLAG_AUTOUP);
         base_cfg.ip_info       = &ip_info;
-        base_cfg.get_ip_event  = 0;
-        base_cfg.lost_ip_event = 0;
         base_cfg.if_key        = "HUGINN_USB";
         base_cfg.if_desc       = "huginn usb ncm";
         base_cfg.route_prio    = 50;
 
         esp_netif_driver_ifconfig_t driver_cfg = {};
-        driver_cfg.handle             = (esp_netif_iodriver_handle)1;  // placeholder, we override transmit
-        driver_cfg.transmit           = netif_transmit_cb;
-        driver_cfg.driver_free_rx_buffer = netif_free_rx_buffer;
+        driver_cfg.handle                  = (esp_netif_iodriver_handle)1;
+        driver_cfg.transmit                = netif_transmit;
+        driver_cfg.driver_free_rx_buffer   = netif_free_rx_buffer;
 
         esp_netif_config_t cfg = {};
         cfg.base   = &base_cfg;
@@ -254,36 +321,28 @@ static bool ncm_bringup() {
             ESP_LOGE(TAG, "esp_netif_new failed");
             return false;
         }
-        esp_netif_set_default_netif(s_netif);
+        // Tell esp_netif our MAC so DHCP/ARP work correctly.
+        esp_netif_set_mac(s_netif, tud_network_mac_address);
 
-        // Push DNS pointing back at us so huginn.local resolves via mDNS proxy.
+        // Push DNS so phone clients can resolve huginn.local without
+        // configuring extra DNS — we run an mDNS responder on the same
+        // gateway address.
         esp_netif_dns_info_t dns = {};
-        IP4_ADDR(&dns.ip.u_addr.ip4, 192, 168, 7, 1);
+        dns.ip.u_addr.ip4.addr = ip_info.gw.addr;
+        dns.ip.type = ESP_IPADDR_TYPE_V4;
         esp_netif_set_dns_info(s_netif, ESP_NETIF_DNS_MAIN, &dns);
 
-        // Cap the DHCP lease pool to a few addresses; phone is the only client.
-        // HUGINN_TODO(idf): the DHCP pool API moved between IDF versions —
-        // some headers expose dhcps_set_option_info(), newer use
-        // esp_netif_dhcps_option(). Both wind up at the same lwIP backing.
+        esp_netif_action_start(s_netif, NULL, 0, NULL);
     }
 
-    // Init TinyUSB NCM class; this registers the network interface in
-    // the USB descriptor and the host will see a new USB-Ethernet adapter.
-    tinyusb_net_config_t net_cfg = {};
-    net_cfg.on_recv_callback = tusb_net_rx_cb;
-    // MAC of the network device end (firmware side).
-    uint8_t mac[6] = {0x02, 0x02, 0x42, 0x47, 0x4E, 0x01};
-    memcpy(net_cfg.mac_addr, mac, 6);
-    if (tinyusb_net_init(TINYUSB_USBDEV_0, &net_cfg) != ESP_OK) {
-        ESP_LOGE(TAG, "tinyusb_net_init failed");
-        return false;
-    }
-
-    // mDNS — huginn.local resolves to the device IP on the USB subnet.
-    if (mdns_init() == ESP_OK) {
-        mdns_hostname_set("huginn");
-        mdns_instance_name_set("HuginnESP");
-        mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+    static bool s_mdns_up = false;
+    if (!s_mdns_up) {
+        if (mdns_init() == ESP_OK) {
+            mdns_hostname_set("huginn");
+            mdns_instance_name_set("HuginnESP");
+            mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+            s_mdns_up = true;
+        }
     }
 
     if (!web_portal_start()) {
@@ -299,14 +358,10 @@ static bool ncm_bringup() {
 
 static void ncm_teardown() {
     web_portal_stop();
-    // Leave the netif and TinyUSB net interface up across enable/disable
-    // cycles — pulling them down at runtime is fragile and the costs
-    // (a few KB of RAM, an extra USB interface) are negligible.
-    // Just stop pushing data:
-    s_enabled = false;
-    if (s_tick_task) {
-        // tick_task self-exits when s_enabled flips false.
-    }
+    // Leave the netif and TinyUSB descriptor in place across enable/
+    // disable cycles. The mDNS service stays advertised; HTTP server is
+    // gone so probes get connection refused, which is the right signal.
+    // tick_task self-exits when s_enabled goes false.
 }
 
 #endif // HUGINN_USBNET_ACTIVE
@@ -344,6 +399,7 @@ bool usb_net_disable() {
         return true;
     }
 #if HUGINN_USBNET_ACTIVE
+    s_enabled = false;
     ncm_teardown();
     Serial.println("{\"ok\":true,\"key\":\"usbnet\",\"value\":\"off\"}");
     return true;
