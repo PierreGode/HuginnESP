@@ -4,7 +4,6 @@
 #include "serial_cmd.h"
 #include "config.h"
 #include "runtime_config.h"
-#include <WiFi.h>
 
 static volatile bool s_running = true;
 
@@ -38,10 +37,10 @@ bool scan_cycle_is_running() {
 static void wifi_wait_and_process(uint32_t timeoutMs) {
     uint32_t elapsed = 0;
     while (elapsed < timeoutMs && !g_manualOverride) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        elapsed += 100;
-        int16_t r = WiFi.scanComplete();
-        if (r >= 0 || r == WIFI_SCAN_FAILED) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+        elapsed += 50;
+        int16_t r = wifi_scanner_poll();
+        if (r >= 0 || r == -2 /*failed*/) {
             wifi_scanner_process();
             return;
         }
@@ -65,10 +64,10 @@ void scan_cycle_task(void* param) {
             wifi_scanner_start();
             uint32_t t = 0;
             while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-                vTaskDelay(pdMS_TO_TICKS(100));
-                t += 100;
-                int16_t r = WiFi.scanComplete();
-                if (r >= 0 || r == WIFI_SCAN_FAILED) {
+                vTaskDelay(pdMS_TO_TICKS(50));
+                t += 50;
+                int16_t r = wifi_scanner_poll();
+                if (r >= 0 || r == -2 /*failed*/) {
                     wifi_scanner_process();
                     break;
                 }
