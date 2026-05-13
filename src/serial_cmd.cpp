@@ -85,9 +85,11 @@ static void handleCommand(const String& cmd) {
 
     } else if (c == "usbnet on") {
         usb_net_enable();
+        Serial.println(usb_net_status_json());
 
     } else if (c == "usbnet off") {
         usb_net_disable();
+        Serial.println(usb_net_status_json());
 
     } else if (c == "usbnet" || c == "usbnet status") {
         Serial.println(usb_net_status_json());
