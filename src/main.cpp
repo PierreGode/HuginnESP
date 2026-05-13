@@ -22,6 +22,7 @@
 #include "serial_cmd.h"
 #include "scan_cycle.h"
 #include "runtime_config.h"
+#include "usb_net.h"
 
 void setup() {
     Serial.begin(SERIAL_BAUD);
@@ -75,6 +76,7 @@ void setup() {
 
     serial_cmd_init();
     scan_cycle_init();
+    usb_net_init();
 
     Serial.printf("[BOOT] Free heap after init: %u\n", ESP.getFreeHeap());
     Serial.flush();

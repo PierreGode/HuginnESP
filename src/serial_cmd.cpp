@@ -4,6 +4,7 @@
 #include "scan_cycle.h"
 #include "config.h"
 #include "runtime_config.h"
+#include "usb_net.h"
 
 volatile ScanMode g_currentMode   = MODE_AUTO_CYCLE;
 volatile bool     g_manualOverride = false;
@@ -81,6 +82,15 @@ static void handleCommand(const String& cmd) {
                       scanModeName(g_currentMode),
                       wifi_scanner_count(),
                       ble_scanner_count());
+
+    } else if (c == "usbnet on") {
+        usb_net_enable();
+
+    } else if (c == "usbnet off") {
+        usb_net_disable();
+
+    } else if (c == "usbnet" || c == "usbnet status") {
+        Serial.println(usb_net_status_json());
     }
 }
 
