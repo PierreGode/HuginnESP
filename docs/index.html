@@ -439,6 +439,118 @@
           if (v && v.build) document.getElementById("build").textContent = v.build;
         })
         .catch(() => {});
+
+      /* ---- Logs & Console: inject dropdown + rename header ---- */
+      (function patchConsole() {
+        const commands = [
+          { label: '── Scan Modes ──', disabled: true },
+          { label: 'Auto cycle',           cmd: 'stop' },
+          { label: 'Wi-Fi scan',           cmd: 'scanap' },
+          { label: 'BLE filtered',         cmd: 'blescan -f' },
+          { label: 'BLE all',              cmd: 'blescan -a' },
+          { label: 'Skimmer detect',       cmd: 'capture -skimmer' },
+          { label: 'Pineapple detect',     cmd: 'pineap' },
+          { label: 'Wardrive',             cmd: 'wardrive' },
+          { label: '── USB Network ──', disabled: true },
+          { label: 'usbnet on',            cmd: 'usbnet on' },
+          { label: 'usbnet off',           cmd: 'usbnet off' },
+          { label: 'usbnet status',        cmd: 'usbnet status' },
+          { label: '── Settings ──', disabled: true },
+          { label: 'set usbnet_autostart 1',  cmd: 'set usbnet_autostart 1' },
+          { label: 'set usbnet_autostart 0',  cmd: 'set usbnet_autostart 0' },
+          { label: 'get all',              cmd: 'get all' },
+          { label: '── Info ──', disabled: true },
+          { label: 'status',               cmd: 'status' },
+        ];
+
+        /* MutationObserver to patch the esp-web-tools dialog once it opens */
+        const observer = new MutationObserver(function(mutations) {
+          for (const m of mutations) {
+            for (const node of m.addedNodes) {
+              if (!node.shadowRoot) continue;
+              const patch = () => {
+                const sr = node.shadowRoot;
+                /* Find the "Logs" heading inside the dialog's shadow DOM */
+                const headings = sr.querySelectorAll('h3, h4, .header, [class*="log"] span, [slot]');
+                sr.querySelectorAll('*').forEach(el => {
+                  if (el.textContent.trim() === 'Logs' && el.children.length === 0) {
+                    el.textContent = 'Logs & Console';
+                  }
+                });
+
+                /* Find the console input (the text field where you type commands) */
+                const input = sr.querySelector('input[type="text"]');
+                if (!input) return;
+
+                /* Don't inject twice */
+                if (sr.querySelector('.huginn-cmd-bar')) return;
+
+                const bar = document.createElement('div');
+                bar.className = 'huginn-cmd-bar';
+                bar.style.cssText = 'display:flex;gap:6px;align-items:center;margin:4px 0 8px;flex-wrap:wrap;';
+
+                const select = document.createElement('select');
+                select.style.cssText =
+                  'background:#1a1a1a;color:#e8e2d4;border:1px solid #333;border-radius:3px;' +
+                  'padding:4px 8px;font-size:13px;font-family:monospace;cursor:pointer;max-width:260px;';
+                const defaultOpt = document.createElement('option');
+                defaultOpt.textContent = '▾ Quick commands…';
+                defaultOpt.value = '';
+                select.appendChild(defaultOpt);
+
+                commands.forEach(c => {
+                  const opt = document.createElement('option');
+                  if (c.disabled) {
+                    opt.disabled = true;
+                    opt.textContent = c.label;
+                  } else {
+                    opt.value = c.cmd;
+                    opt.textContent = c.label + '  →  ' + c.cmd;
+                  }
+                  select.appendChild(opt);
+                });
+
+                const sendBtn = document.createElement('button');
+                sendBtn.textContent = 'Send';
+                sendBtn.style.cssText =
+                  'background:#c8a35d;color:#0a0908;border:none;border-radius:3px;' +
+                  'padding:4px 14px;font-size:13px;font-family:"Cinzel",serif;font-weight:600;' +
+                  'letter-spacing:0.1em;cursor:pointer;';
+
+                select.addEventListener('change', () => {
+                  if (select.value) {
+                    input.value = select.value;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                });
+
+                sendBtn.addEventListener('click', () => {
+                  if (input.value.trim()) {
+                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                    input.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                    /* Reset dropdown */
+                    setTimeout(() => { select.selectedIndex = 0; }, 200);
+                  }
+                });
+
+                bar.appendChild(select);
+                bar.appendChild(sendBtn);
+                input.parentElement.insertBefore(bar, input);
+              };
+
+              /* The dialog shadow DOM may populate async; retry briefly */
+              patch();
+              let retries = 0;
+              const iv = setInterval(() => {
+                patch();
+                if (++retries > 20 || sr.querySelector('.huginn-cmd-bar')) clearInterval(iv);
+              }, 300);
+            }
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      })();
     </script>
   </body>
 </html>
