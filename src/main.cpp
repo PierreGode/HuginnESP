@@ -23,6 +23,8 @@
 #include "scan_cycle.h"
 #include "runtime_config.h"
 #include "usb_net.h"
+#include "gps_uart.h"
+#include "scan_event_bus.h"
 
 void setup() {
     Serial.begin(SERIAL_BAUD);
@@ -35,7 +37,11 @@ void setup() {
 #else
     const char* HUGINN_BOARD_NAME = "unknown";
 #endif
-#if HUGINN_HAS_DISPLAY
+#if HUGINN_HAS_DISPLAY && HUGINN_BOARD_S3
+    const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"display\",\"usbnet\"";
+#elif HUGINN_BOARD_S3
+    const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"usbnet\"";
+#elif HUGINN_HAS_DISPLAY
     const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"display\"";
 #else
     const char* HUGINN_CAPS = "\"wifi\",\"ble\"";
@@ -58,6 +64,8 @@ void setup() {
     Serial.flush();
 
     runtime_config_init();
+    scan_event_bus_init();
+    gps_uart_init();
 
     // WiFi MUST init before display — WiFi ISR conflicts with RGB DMA cache.
     Serial.println("[BOOT] Init WiFi...");

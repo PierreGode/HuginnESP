@@ -1,6 +1,7 @@
 #include "ble_scanner.h"
 #include "config.h"
 #include "runtime_config.h"
+#include "scan_event_bus.h"
 #include <BLEDevice.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
@@ -112,6 +113,12 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
             if (skimmer) s_sessionSkimmerMacs.insert(mac);
             xSemaphoreGive(s_sessionMutex);
         }
+
+        // Mirror every BLE detection into the event bus so the web dashboard
+        // sees the same stream regardless of which serial mode is active.
+        // Flag bits: bit0=flipper bit1=airtag bit2=skimmer (matches dashboard).
+        uint8_t flags = (flipper ? 1 : 0) | (airtag ? 2 : 0) | (skimmer ? 4 : 0);
+        scan_event_bus_push_ble(mac.c_str(), name.c_str(), (int8_t)rssi, flags);
 
         // ---- Filtered mode: only output Flipper / AirTag ----
         if (s_mode == BLE_MODE_FILTERED) {

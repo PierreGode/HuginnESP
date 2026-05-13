@@ -98,6 +98,13 @@ void serial_cmd_init() {
     // nothing extra needed — Serial is initialized in main
 }
 
+// C-ABI shim so the HTTP server (web_portal.cpp) can feed command lines
+// through the same parser the serial port uses. Used by POST /api/cmd.
+extern "C" void huginn_dispatch_cmd_line(const char* line) {
+    if (!line || !*line) return;
+    handleCommand(String(line));
+}
+
 void serial_cmd_poll() {
     if (Serial.available()) {
         String line = Serial.readStringUntil('\n');
