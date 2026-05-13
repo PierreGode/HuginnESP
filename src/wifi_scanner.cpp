@@ -2,6 +2,7 @@
 #include "config.h"
 #include "runtime_config.h"
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <vector>
@@ -9,7 +10,9 @@
 #include <set>
 
 static std::vector<WifiNetwork> s_networks;
-static bool s_scanning = false;
+static volatile bool s_scanning   = false;
+static volatile bool s_scanDone   = false;
+static volatile bool s_scanFailed = false;
 static int  s_lastCount = 0;
 
 // Map SSID -> list of BSSIDs for evil-twin detection.
@@ -20,6 +23,14 @@ static std::map<String, std::vector<String>> s_ssidMap;
 #define WIFI_SESSION_TRACK_CAP 4096
 static SemaphoreHandle_t s_sessionMutex = nullptr;
 static std::set<String>  s_sessionBssids;
+
+#if HUGINN_BOARD_C5
+// Pass 0 = 2.4 GHz, Pass 1 = 5 GHz. Alternating one band per scan call
+// keeps each scan under ~2 s on the dual-band radio, so the first batch
+// of networks appears in the serial stream within a couple of seconds
+// instead of after the full dual-band sweep (>10 s).
+static int s_bandPass = 0;
+#endif
 
 static const char* authModeStr(wifi_auth_mode_t mode) {
     switch (mode) {
@@ -34,41 +45,99 @@ static const char* authModeStr(wifi_auth_mode_t mode) {
     }
 }
 
+static void onScanEvent(arduino_event_t* event) {
+    if (event->event_id == ARDUINO_EVENT_WIFI_SCAN_DONE) {
+        if (event->event_info.wifi_scan_done.status == 0) {
+            s_scanDone = true;
+        } else {
+            s_scanFailed = true;
+        }
+    }
+}
+
 void wifi_scanner_init() {
     if (!s_sessionMutex) s_sessionMutex = xSemaphoreCreateMutex();
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
+    WiFi.onEvent(onScanEvent, ARDUINO_EVENT_WIFI_SCAN_DONE);
 }
 
 void wifi_scanner_start() {
     if (s_scanning) return;
-    s_scanning = true;
+    s_scanning   = true;
+    s_scanDone   = false;
+    s_scanFailed = false;
     s_networks.clear();
-    // 120 ms per channel is the minimum for reliable beacon capture;
-    // cuts scan time ~2.5× vs the 300 ms default.
-    WiFi.scanNetworks(/*async=*/true, /*show_hidden=*/false,
-                      /*passive=*/false, /*max_ms_per_chan=*/120);
+
+    wifi_scan_config_t cfg = {};
+    cfg.show_hidden = false;
+    cfg.scan_type   = WIFI_SCAN_TYPE_ACTIVE;
+    // Arduino's WiFi.scanNetworks wrapper hardcodes min=100/max=120 ms
+    // per channel, which on a dual-band radio (≈50 channels incl. DFS)
+    // pushes a full sweep over 10 s. Probe requests get answers in
+    // well under 80 ms in practice; the lower min lets quiet channels
+    // drop through quickly.
+    cfg.scan_time.active.min = 20;
+    cfg.scan_time.active.max = 80;
+
+#if HUGINN_BOARD_C5
+    // Restrict each scan to a single band. The radio still covers
+    // both bands across two consecutive calls, but each individual
+    // call now finishes in 1–2 s, giving the host snappy updates.
+    if (s_bandPass == 0) {
+        cfg.channel_bitmap.ghz_2_channels = 0x1FFF;     // ch 1..13
+        cfg.channel_bitmap.ghz_5_channels = 0;
+    } else {
+        cfg.channel_bitmap.ghz_2_channels = 0;
+        cfg.channel_bitmap.ghz_5_channels = 0xFFFFFFFF; // all 5 GHz
+    }
+    s_bandPass ^= 1;
+#endif
+
+    esp_err_t err = esp_wifi_scan_start(&cfg, /*block=*/false);
+    if (err != ESP_OK) {
+        s_scanning   = false;
+        s_scanFailed = true;
+    }
+}
+
+int16_t wifi_scanner_poll() {
+    if (s_scanFailed) return -2;
+    if (s_scanDone)   return 0;
+    return -1;
 }
 
 void wifi_scanner_process() {
-    int16_t n = WiFi.scanComplete();
-    if (n == WIFI_SCAN_RUNNING) return;
-    if (n == WIFI_SCAN_FAILED) {
-        s_scanning = false;
+    if (s_scanFailed) {
+        s_scanning   = false;
+        s_scanFailed = false;
         return;
+    }
+    if (!s_scanDone) return;
+
+    uint16_t apCount = 0;
+    esp_wifi_scan_get_ap_num(&apCount);
+    std::vector<wifi_ap_record_t> records(apCount);
+    if (apCount > 0) {
+        esp_wifi_scan_get_ap_records(&apCount, records.data());
     }
 
     s_ssidMap.clear();
     s_networks.clear();
-    s_lastCount = n;
+    s_lastCount = apCount;
 
-    for (int i = 0; i < n; i++) {
+    char bssidStr[18];
+    for (uint16_t i = 0; i < apCount; i++) {
+        const wifi_ap_record_t& r = records[i];
+        snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+                 r.bssid[0], r.bssid[1], r.bssid[2], r.bssid[3], r.bssid[4], r.bssid[5]);
+
         WifiNetwork net;
-        net.ssid     = WiFi.SSID(i);
-        net.bssid    = WiFi.BSSIDstr(i);
-        net.rssi     = WiFi.RSSI(i);
-        net.channel  = WiFi.channel(i);
-        net.security = authModeStr(WiFi.encryptionType(i));
+        net.ssid     = (const char*)r.ssid;
+        net.bssid    = bssidStr;
+        net.rssi     = r.rssi;
+        net.channel  = r.primary;
+        net.security = authModeStr(r.authmode);
         s_networks.push_back(net);
 
         // JSON output for Ragnar parser
@@ -88,14 +157,16 @@ void wifi_scanner_process() {
         }
     }
 
-    WiFi.scanDelete();
     s_scanning = false;
+    s_scanDone = false;
 }
 
 void wifi_scanner_stop() {
     if (s_scanning) {
-        WiFi.scanDelete();
-        s_scanning = false;
+        esp_wifi_scan_stop();
+        s_scanning   = false;
+        s_scanDone   = false;
+        s_scanFailed = false;
     }
 }
 
@@ -124,9 +195,12 @@ void wifi_scanner_check_pineapple() {
 
     // Wait for scan to complete (blocking, used during pineapple cycle step)
     unsigned long start = millis();
-    while (WiFi.scanComplete() == WIFI_SCAN_RUNNING) {
-        if (millis() - start > g_wifiScanDurationMs) break;
-        vTaskDelay(pdMS_TO_TICKS(100));
+    while (!s_scanDone && !s_scanFailed) {
+        if (millis() - start > g_wifiScanDurationMs) {
+            wifi_scanner_stop();
+            return;
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
     wifi_scanner_process();
 

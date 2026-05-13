@@ -18,6 +18,12 @@ void wifi_scanner_init();
 // when wifi_scanner_process() is called.
 void wifi_scanner_start();
 
+// Poll scan state. Mirrors WiFi.scanComplete() semantics:
+//   -1  -> still running
+//   -2  -> failed (WIFI_SCAN_FAILED)
+//    0+ -> done, call wifi_scanner_process() to read records
+int16_t wifi_scanner_poll();
+
 // Process completed scan results — prints to Serial and
 // updates the shared network list.
 void wifi_scanner_process();
