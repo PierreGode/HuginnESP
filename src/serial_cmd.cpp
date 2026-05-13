@@ -4,6 +4,7 @@
 #include "scan_cycle.h"
 #include "config.h"
 #include "runtime_config.h"
+#include "usb_net.h"
 
 volatile ScanMode g_currentMode   = MODE_AUTO_CYCLE;
 volatile bool     g_manualOverride = false;
@@ -81,11 +82,27 @@ static void handleCommand(const String& cmd) {
                       scanModeName(g_currentMode),
                       wifi_scanner_count(),
                       ble_scanner_count());
+
+    } else if (c == "usbnet on") {
+        usb_net_enable();
+
+    } else if (c == "usbnet off") {
+        usb_net_disable();
+
+    } else if (c == "usbnet" || c == "usbnet status") {
+        Serial.println(usb_net_status_json());
     }
 }
 
 void serial_cmd_init() {
     // nothing extra needed — Serial is initialized in main
+}
+
+// C-ABI shim so the HTTP server (web_portal.cpp) can feed command lines
+// through the same parser the serial port uses. Used by POST /api/cmd.
+extern "C" void huginn_dispatch_cmd_line(const char* line) {
+    if (!line || !*line) return;
+    handleCommand(String(line));
 }
 
 void serial_cmd_poll() {
