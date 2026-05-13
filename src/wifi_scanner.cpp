@@ -2,6 +2,8 @@
 #include "config.h"
 #include "runtime_config.h"
 #include <WiFi.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <vector>
 #include <map>
 #include <set>
@@ -42,7 +44,10 @@ void wifi_scanner_start() {
     if (s_scanning) return;
     s_scanning = true;
     s_networks.clear();
-    WiFi.scanNetworks(true); // async = true
+    // 120 ms per channel is the minimum for reliable beacon capture;
+    // cuts scan time ~2.5× vs the 300 ms default.
+    WiFi.scanNetworks(/*async=*/true, /*show_hidden=*/false,
+                      /*passive=*/false, /*max_ms_per_chan=*/120);
 }
 
 void wifi_scanner_process() {
@@ -121,7 +126,7 @@ void wifi_scanner_check_pineapple() {
     unsigned long start = millis();
     while (WiFi.scanComplete() == WIFI_SCAN_RUNNING) {
         if (millis() - start > g_wifiScanDurationMs) break;
-        delay(100);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     wifi_scanner_process();
 

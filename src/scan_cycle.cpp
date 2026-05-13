@@ -4,26 +4,18 @@
 #include "serial_cmd.h"
 #include "config.h"
 #include "runtime_config.h"
+#include <WiFi.h>
 
 static volatile bool s_running = true;
 
-// Cycle definition: { mode, duration_ms }
-struct CycleStep {
-    ScanMode mode;
-    uint32_t durationMs;
+// BLE modes to rotate through during normal cycling.
+static const BleMode BLE_ROTATION[] = {
+    BLE_MODE_FILTERED, BLE_MODE_ALL, BLE_MODE_SKIMMER
 };
+static const int BLE_ROTATION_LEN = 3;
 
-static const CycleStep CYCLE[] = {
-    { MODE_WIFI,         WIFI_SCAN_DURATION   },  // Step 1
-    { MODE_BLE_FILTERED, BLE_SCAN_DURATION    },  // Step 2
-    { MODE_WIFI,         WIFI_SCAN_DURATION   },  // Step 3
-    { MODE_BLE_ALL,      BLE_SCAN_DURATION    },  // Step 4
-    { MODE_WIFI,         WIFI_SCAN_DURATION   },  // Step 5
-    { MODE_SKIMMER,      BLE_SCAN_DURATION    },  // Step 6
-    { MODE_WIFI,         WIFI_SCAN_DURATION   },  // Step 7
-    { MODE_PINEAPPLE,    PINEAP_SCAN_DURATION },  // Step 8
-};
-static const int CYCLE_LEN = sizeof(CYCLE) / sizeof(CYCLE[0]);
+// Run a pineapple check every this many WiFi scans.
+static const int PINEAPPLE_EVERY_N = 4;
 
 void scan_cycle_init() {
     s_running = true;
@@ -41,93 +33,89 @@ bool scan_cycle_is_running() {
     return s_running;
 }
 
+// Poll until the async WiFi scan finishes, then process results.
+// Returns immediately if manual override is engaged.
+static void wifi_wait_and_process(uint32_t timeoutMs) {
+    uint32_t elapsed = 0;
+    while (elapsed < timeoutMs && !g_manualOverride) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+        elapsed += 100;
+        int16_t r = WiFi.scanComplete();
+        if (r >= 0 || r == WIFI_SCAN_FAILED) {
+            wifi_scanner_process();
+            return;
+        }
+    }
+    wifi_scanner_stop();
+}
+
 void scan_cycle_task(void* param) {
-    int step = 0;
+    int  bleModeIdx   = 0;
+    int  wifiScans    = 0;
+    BleMode activeBle = BLE_MODE_OFF;
+
     for (;;) {
-        // Wardrive mode — tight WiFi/BLE alternation tuned for moving captures.
-        // Stays in this branch until the user types `stop` (which clears
-        // g_manualOverride and resets g_currentMode).
+        // ── Wardrive mode ────────────────────────────────────────────────
+        // BLE_ALL runs continuously while WiFi scans loop back-to-back.
         if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+            if (activeBle != BLE_MODE_ALL) {
+                ble_scanner_start(BLE_MODE_ALL);
+                activeBle = BLE_MODE_ALL;
+            }
             wifi_scanner_start();
             uint32_t t = 0;
-            while (t < g_wardriveWifiMs &&
-                   g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+            while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
                 vTaskDelay(pdMS_TO_TICKS(100));
                 t += 100;
-                wifi_scanner_process();
+                int16_t r = WiFi.scanComplete();
+                if (r >= 0 || r == WIFI_SCAN_FAILED) {
+                    wifi_scanner_process();
+                    break;
+                }
+                if (t >= g_wardriveWifiMs) {
+                    wifi_scanner_stop();
+                    break;
+                }
             }
-            wifi_scanner_stop();
-
-            if (!g_manualOverride || g_currentMode != MODE_WARDRIVE) continue;
-
-            // BLE_ALL emits every device as JSON; Flipper / AirTag / skimmer
-            // detections fire passively on the same stream.
-            ble_scanner_start(BLE_MODE_ALL);
-            t = 0;
-            while (t < g_wardriveBleMs &&
-                   g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-                vTaskDelay(pdMS_TO_TICKS(100));
-                t += 100;
-            }
-            ble_scanner_stop();
             continue;
         }
 
-        // If manual override is active (any other mode), sleep and retry.
+        // ── Manual override (non-wardrive) or paused ─────────────────────
         if (g_manualOverride || !s_running) {
+            if (activeBle != BLE_MODE_OFF) {
+                ble_scanner_stop();
+                activeBle = BLE_MODE_OFF;
+            }
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }
 
-        const CycleStep& cs = CYCLE[step];
-        g_currentMode = cs.mode;
-        const uint32_t stepDurationMs =
-            (cs.mode == MODE_WIFI) ? g_wifiScanDurationMs : cs.durationMs;
-
-        switch (cs.mode) {
-            case MODE_WIFI:
-                wifi_scanner_start();
-                break;
-            case MODE_BLE_FILTERED:
-                ble_scanner_start(BLE_MODE_FILTERED);
-                break;
-            case MODE_BLE_ALL:
-                ble_scanner_start(BLE_MODE_ALL);
-                break;
-            case MODE_SKIMMER:
-                ble_scanner_start(BLE_MODE_SKIMMER);
-                break;
-            case MODE_PINEAPPLE:
-                wifi_scanner_check_pineapple();
-                break;
-            default:
-                break;
-        }
-
-        // Wait for the duration, checking for abort every 250ms
-        uint32_t elapsed = 0;
-        while (elapsed < stepDurationMs) {
-            vTaskDelay(pdMS_TO_TICKS(250));
-            elapsed += 250;
-
-            // If WiFi scan, process results as they arrive
-            if (cs.mode == MODE_WIFI) {
-                wifi_scanner_process();
-            }
-
-            // Abort if manual override engaged
-            if (g_manualOverride) break;
-        }
-
-        // Stop current scan before moving to next
-        if (!g_manualOverride) {
-            if (cs.mode == MODE_WIFI || cs.mode == MODE_PINEAPPLE) {
-                wifi_scanner_stop();
-            } else {
+        // ── Periodic pineapple check ──────────────────────────────────────
+        // Stop BLE so the dedicated WiFi scan gets clean radio access.
+        if (wifiScans > 0 && (wifiScans % PINEAPPLE_EVERY_N) == 0) {
+            if (activeBle != BLE_MODE_OFF) {
                 ble_scanner_stop();
+                activeBle = BLE_MODE_OFF;
             }
+            g_currentMode = MODE_PINEAPPLE;
+            wifi_scanner_check_pineapple();
+            wifiScans++; // prevent immediate re-trigger
+            continue;    // restart loop — BLE and WiFi restart next iteration
         }
 
-        step = (step + 1) % CYCLE_LEN;
+        // ── Normal cycle: WiFi + BLE simultaneously ───────────────────────
+        // Rotate BLE mode each WiFi scan; ESP32 coexistence shares the radio.
+        BleMode nextBle = BLE_ROTATION[bleModeIdx];
+        if (activeBle != nextBle) {
+            ble_scanner_start(nextBle); // stops old mode, starts new one
+            activeBle = nextBle;
+        }
+
+        g_currentMode = MODE_WIFI;
+        wifi_scanner_start();
+        wifi_wait_and_process(g_wifiScanDurationMs);
+
+        wifiScans++;
+        bleModeIdx = (bleModeIdx + 1) % BLE_ROTATION_LEN;
     }
 }
