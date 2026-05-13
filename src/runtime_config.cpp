@@ -67,13 +67,13 @@ static void setSkimmerNamesFromCsv(const String& csv) {
 }
 
 static void printErr(const char* msg) {
-    Serial.printf("{\"error\":\"%s\"}\n", msg);
+    Serial.printf("[HUGINN] {\"error\":\"%s\"}\n", msg);
 }
 static void printOkUint(const char* key, uint32_t v) {
-    Serial.printf("{\"ok\":true,\"key\":\"%s\",\"value\":%u}\n", key, (unsigned)v);
+    Serial.printf("[HUGINN] {\"ok\":true,\"key\":\"%s\",\"value\":%u}\n", key, (unsigned)v);
 }
 static void printOkStr(const char* key, const String& v) {
-    Serial.printf("{\"ok\":true,\"key\":\"%s\",\"value\":\"%s\"}\n", key, v.c_str());
+    Serial.printf("[HUGINN] {\"ok\":true,\"key\":\"%s\",\"value\":\"%s\"}\n", key, v.c_str());
 }
 
 static bool parseUint(const String& s, uint32_t& out) {

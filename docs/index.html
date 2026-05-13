@@ -703,9 +703,6 @@
         let port = null;
         let reader = null;
         let readLoop = null;
-        let awaitingResponse = false;
-        let responseTimer = null;
-
         const logOut   = document.getElementById('logOutput');
         const conOut   = document.getElementById('conOutput');
         const input    = document.getElementById('cmdInput');
@@ -717,10 +714,8 @@
         const dot      = document.getElementById('shDot');
         const stateEl  = document.getElementById('shState');
 
-        /* Log lines from ESP-IDF / Arduino typically look like:
-           [17:11:21] 21257 [I][BLEScan.cpp:683] ...
-           or start with E (mmm) / I (mmm) / D (mmm) etc. */
-        const LOG_RE = /^\[?\d{1,2}:\d{2}:\d{2}|^\s*\[\d+\]\s*\[|^[EWID]\s*\(\d+\)/;
+        /* Firmware prefixes every command response with [HUGINN] */
+        const HUGINN_RE = /^\[HUGINN\]\s?/;
 
         function setConnected(on) {
           dot.classList.toggle('connected', on);
@@ -748,11 +743,12 @@
             /* Always goes to Logs pane */
             appendTo(logOut, full, 'log-line');
 
-            /* Console pane: show only non-log lines (command responses) */
-            if (awaitingResponse && !LOG_RE.test(line.trim())) {
-              if (line.trim().length > 0) {
-                appendTo(conOut, full, 'cmd-response');
-              }
+            /* Console pane: show lines prefixed with [HUGINN] */
+            const trimmed = line.trim();
+            const m = trimmed.match(HUGINN_RE);
+            if (m) {
+              const payload = trimmed.slice(m[0].length);
+              appendTo(conOut, payload + '\n', 'cmd-response');
             }
           }
         }
@@ -809,10 +805,6 @@
           const writer = port.writable.getWriter();
           const encoder = new TextEncoder();
           appendTo(conOut, '> ' + cmd + '\n', 'cmd-echo');
-          /* Open a response window — capture non-log lines for ~2 sec */
-          awaitingResponse = true;
-          clearTimeout(responseTimer);
-          responseTimer = setTimeout(() => { awaitingResponse = false; }, 2000);
           await writer.write(encoder.encode(cmd + '\r\n'));
           writer.releaseLock();
         }
