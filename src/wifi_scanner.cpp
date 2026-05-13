@@ -24,14 +24,6 @@ static std::map<String, std::vector<String>> s_ssidMap;
 static SemaphoreHandle_t s_sessionMutex = nullptr;
 static std::set<String>  s_sessionBssids;
 
-#if HUGINN_BOARD_C5
-// Pass 0 = 2.4 GHz, Pass 1 = 5 GHz. Alternating one band per scan call
-// keeps each scan under ~2 s on the dual-band radio, so the first batch
-// of networks appears in the serial stream within a couple of seconds
-// instead of after the full dual-band sweep (>10 s).
-static int s_bandPass = 0;
-#endif
-
 static const char* authModeStr(wifi_auth_mode_t mode) {
     switch (mode) {
         case WIFI_AUTH_OPEN:            return "Open";
@@ -74,25 +66,14 @@ void wifi_scanner_start() {
     cfg.scan_type   = WIFI_SCAN_TYPE_ACTIVE;
     // Arduino's WiFi.scanNetworks wrapper hardcodes min=100/max=120 ms
     // per channel, which on a dual-band radio (≈50 channels incl. DFS)
-    // pushes a full sweep over 10 s. Probe requests get answers in
-    // well under 80 ms in practice; the lower min lets quiet channels
-    // drop through quickly.
+    // pushes a full sweep past 10 s. We scan every channel on every
+    // pass (mandatory for wardriving at 60 km/h — an AP is only in
+    // range for a few seconds), but with much tighter dwell windows:
+    // probe responses arrive in well under 80 ms, and the low min
+    // lets quiet channels drop through almost immediately. Net effect
+    // on the C5 is a full dual-band sweep in ≈2–3 s instead of ≈15 s.
     cfg.scan_time.active.min = 20;
     cfg.scan_time.active.max = 80;
-
-#if HUGINN_BOARD_C5
-    // Restrict each scan to a single band. The radio still covers
-    // both bands across two consecutive calls, but each individual
-    // call now finishes in 1–2 s, giving the host snappy updates.
-    if (s_bandPass == 0) {
-        cfg.channel_bitmap.ghz_2_channels = 0x1FFF;     // ch 1..13
-        cfg.channel_bitmap.ghz_5_channels = 0;
-    } else {
-        cfg.channel_bitmap.ghz_2_channels = 0;
-        cfg.channel_bitmap.ghz_5_channels = 0xFFFFFFFF; // all 5 GHz
-    }
-    s_bandPass ^= 1;
-#endif
 
     esp_err_t err = esp_wifi_scan_start(&cfg, /*block=*/false);
     if (err != ESP_OK) {
