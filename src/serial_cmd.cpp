@@ -62,11 +62,10 @@ static void handleCommand(const String& cmd) {
         wifi_scanner_check_pineapple();
 
     } else if (c == "wardrive") {
-        // Tight WiFi/BLE alternation tuned for moving captures. Loop runs
-        // in scan_cycle_task while g_currentMode == MODE_WARDRIVE.
         g_manualOverride = true;
         wifi_scanner_stop();
         ble_scanner_stop();
+        wifi_scanner_reset_dedup();
         g_currentMode = MODE_WARDRIVE;
 
     } else if (c == "stop" || c == "capture -stop") {

@@ -8,6 +8,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <unordered_set>
 
 static std::vector<WifiNetwork> s_networks;
 static volatile bool s_scanning   = false;
@@ -23,6 +24,16 @@ static std::map<String, std::vector<String>> s_ssidMap;
 #define WIFI_SESSION_TRACK_CAP 4096
 static SemaphoreHandle_t s_sessionMutex = nullptr;
 static std::set<String>  s_sessionBssids;
+
+#define WIFI_DEDUP_CAP 4096
+static std::unordered_set<uint64_t> s_emittedBssids;
+static bool s_dedupEnabled = false;
+
+static uint64_t bssid_to_u64(const uint8_t* mac) {
+    return ((uint64_t)mac[0] << 40) | ((uint64_t)mac[1] << 32)
+         | ((uint64_t)mac[2] << 24) | ((uint64_t)mac[3] << 16)
+         | ((uint64_t)mac[4] << 8)  | (uint64_t)mac[5];
+}
 
 static const char* authModeStr(wifi_auth_mode_t mode) {
     switch (mode) {
@@ -55,7 +66,7 @@ void wifi_scanner_init() {
     Serial.printf("[WIFI] init done, mode=%d\n", WiFi.getMode());
 }
 
-void wifi_scanner_start() {
+static void wifi_scanner_start_internal(uint8_t channel) {
     if (s_scanning) return;
     s_scanning   = true;
     s_scanDone   = false;
@@ -65,28 +76,32 @@ void wifi_scanner_start() {
     wifi_scan_config_t cfg = {};
     cfg.show_hidden = false;
     cfg.scan_type   = WIFI_SCAN_TYPE_ACTIVE;
-    // Arduino's WiFi.scanNetworks wrapper hardcodes min=100/max=120 ms
-    // per channel, which on a dual-band radio (≈50 channels incl. DFS)
-    // pushes a full sweep past 10 s. We scan every channel on every
-    // pass (mandatory for wardriving at 60 km/h — an AP is only in
-    // range for a few seconds), but with tighter dwell windows.
-    //
-    // min=30 ms ensures quiet channels still wait long enough for one
-    // probe response cycle (typical AP responds within 5–20 ms but some
-    // budget APs lag); max=120 ms catches slow responders without
-    // exceeding the Arduino default. Net sweep: ~1.5 s on S3 (2.4 GHz),
-    // ~3 s on C5 (dual-band).
+    cfg.channel     = channel;
     cfg.scan_time.active.min = 30;
     cfg.scan_time.active.max = 120;
 
-    esp_err_t err = esp_wifi_scan_start(&cfg, /*block=*/false);
+    esp_err_t err = esp_wifi_scan_start(&cfg, false);
     if (err != ESP_OK) {
         Serial.printf("[WIFI] scan_start FAILED: 0x%x (%s)\n", err, esp_err_to_name(err));
         s_scanning   = false;
         s_scanFailed = true;
-    } else {
-        Serial.println("[WIFI] scan_start OK (async)");
     }
+}
+
+void wifi_scanner_start() {
+    wifi_scanner_start_internal(0);
+}
+
+void wifi_scanner_start_channel(uint8_t channel) {
+    wifi_scanner_start_internal(channel);
+}
+
+void wifi_scanner_set_dedup(bool enabled) {
+    s_dedupEnabled = enabled;
+}
+
+void wifi_scanner_reset_dedup() {
+    s_emittedBssids.clear();
 }
 
 int16_t wifi_scanner_poll() {
@@ -129,10 +144,21 @@ void wifi_scanner_process() {
         net.security = authModeStr(r.authmode);
         s_networks.push_back(net);
 
-        // JSON output for Ragnar parser
-        Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
-                      net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
-        Serial.flush();
+        bool emitNow = true;
+        if (s_dedupEnabled) {
+            uint64_t key = bssid_to_u64(r.bssid);
+            if (s_emittedBssids.count(key)) {
+                emitNow = false;
+            } else if (s_emittedBssids.size() < WIFI_DEDUP_CAP) {
+                s_emittedBssids.insert(key);
+            }
+        }
+
+        if (emitNow) {
+            // JSON output for Ragnar parser
+            Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
+                          net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
+        }
 
         // Track for evil-twin detection
         s_ssidMap[net.ssid].push_back(net.bssid);

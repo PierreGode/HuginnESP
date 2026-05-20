@@ -13,6 +13,30 @@ static const BleMode BLE_ROTATION[] = {
 };
 static const int BLE_ROTATION_LEN = 3;
 
+#ifdef HUGINN_BOARD_C5
+static const uint8_t kWardriveChannels[] = {
+    1, 6, 11,
+    36, 40, 44, 48,
+    149, 153, 157, 161,
+    1, 6, 11,
+    36, 40, 44, 48,
+    149, 153, 157, 161,
+    2, 3, 4, 5, 7, 8, 9, 10, 12, 13,
+    52, 56, 60, 64,
+    100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
+    165, 169, 173, 177
+};
+#else
+static const uint8_t kWardriveChannels[] = {
+    1, 6, 11,
+    1, 6, 11,
+    1, 6, 11,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+};
+#endif
+static const size_t kWardriveChannelsLen =
+    sizeof(kWardriveChannels) / sizeof(kWardriveChannels[0]);
+
 // Run a pineapple check every this many WiFi scans.
 static const int PINEAPPLE_EVERY_N = 4;
 
@@ -55,56 +79,40 @@ void scan_cycle_task(void* param) {
 
     for (;;) {
         // ── Wardrive mode ────────────────────────────────────────────────
-        // Tight WiFi ↔ BLE alternation per the README. Running BLE_MODE_ALL
-        // in parallel with the WiFi scan starves WiFi: the BLE scanner sets
-        // interval=100 / window=99 which owns the shared 2.4 GHz radio ~99 %
-        // of the time, so WiFi completes with apCount=0. The fix is to give
-        // each radio an exclusive window per cycle.
         if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-            // Phase 1 — WiFi (BLE off so the radio is exclusively WiFi).
-            // Chain back-to-back scans within the WiFi phase: each
-            // completed sweep emits its full set of records, then we
-            // immediately start another. This uses the whole phase
-            // budget instead of going idle after a single sweep, which
-            // is the difference between one and three sweeps per cycle
-            // on the S3 (and one full sweep that actually completes
-            // instead of being aborted, on the C5).
             if (activeBle != BLE_MODE_OFF) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;
             }
+            wifi_scanner_set_dedup(true);
+
             uint32_t phaseStart = millis();
-            int wardriveSweeps = 0;
-            bool deadlineHit = false;
+            size_t channelsDone = 0;
             while (g_manualOverride && g_currentMode == MODE_WARDRIVE
-                   && !deadlineHit
+                   && channelsDone < kWardriveChannelsLen
                    && (millis() - phaseStart) < g_wardriveWifiMs) {
-                wifi_scanner_start();
-                // Wait for this sweep to complete or the phase deadline,
-                // whichever comes first. On natural completion, process
-                // and start the next sweep. On deadline, abort cleanly.
+                uint8_t ch = kWardriveChannels[channelsDone++];
+                wifi_scanner_start_channel(ch);
+                uint32_t chStart = millis();
                 while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-                    if ((millis() - phaseStart) >= g_wardriveWifiMs) {
+                    if ((millis() - chStart) > 200
+                        || (millis() - phaseStart) >= g_wardriveWifiMs) {
                         wifi_scanner_stop();
-                        deadlineHit = true;
                         break;
                     }
-                    vTaskDelay(pdMS_TO_TICKS(50));
+                    vTaskDelay(pdMS_TO_TICKS(5));
                     int16_t r = wifi_scanner_poll();
-                    if (r >= 0 || r == -2 /*failed*/) {
+                    if (r >= 0 || r == -2) {
                         wifi_scanner_process();
-                        wardriveSweeps++;
                         break;
                     }
                 }
             }
             if (!(g_manualOverride && g_currentMode == MODE_WARDRIVE)) continue;
-            Serial.printf("[CYCLE] wardrive WiFi phase: %d sweep(s) in %ums\n",
-                          wardriveSweeps, (unsigned)(millis() - phaseStart));
+            Serial.printf("[CYCLE] wardrive WiFi phase: %u/%u channels in %ums\n",
+                          (unsigned)channelsDone, (unsigned)kWardriveChannelsLen,
+                          (unsigned)(millis() - phaseStart));
 
-            // Phase 2 — BLE_MODE_ALL for the configured window. Flipper /
-            // AirTag / skimmer detections still fire passively from the
-            // same stream.
             ble_scanner_start(BLE_MODE_ALL);
             activeBle = BLE_MODE_ALL;
             uint32_t bleT = 0;

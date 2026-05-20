@@ -14,9 +14,11 @@ struct WifiNetwork {
 
 void wifi_scanner_init();
 
-// Start an async WiFi scan. Results are printed to Serial
-// when wifi_scanner_process() is called.
 void wifi_scanner_start();
+void wifi_scanner_start_channel(uint8_t channel);
+
+void wifi_scanner_set_dedup(bool enabled);
+void wifi_scanner_reset_dedup();
 
 // Poll scan state. Mirrors WiFi.scanComplete() semantics:
 //   -1  -> still running
