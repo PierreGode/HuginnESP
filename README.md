@@ -27,6 +27,38 @@ Both boards run the same firmware behavior; the C5 build skips display code (`HU
 | **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
 | **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
+| **GPS tagging** | Optional — when a NMEA GPS module is wired and has a fix, `lat`/`lon` are appended to every `WIFI` JSON line |
+
+---
+
+## GPS wiring (optional)
+
+Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6M, L76, etc.).
+
+| GPS pin | ESP32 pin | Notes |
+|---|---|---|
+| VCC | 3.3 V | Most breakouts are 3.3 V — check your module |
+| GND | GND | |
+| TX (GPS out) | GPIO 17 (default `GPS_RX_PIN`) | This is the data line into the ESP32 |
+| RX (GPS in) | GPIO 18 (default `GPS_TX_PIN`) | Leave unconnected if module is receive-only |
+
+To use different pins, override in `platformio.ini`:
+
+```ini
+build_flags =
+    ...
+    -DHUGINN_HAS_GPS=1
+    -DGPS_RX_PIN=16
+    -DGPS_TX_PIN=15
+    -DGPS_UART_NUM=1
+```
+
+Build with one of the GPS-enabled environments:
+
+```
+pio run -e esp32s3box-gps
+pio run -e esp32c5-gps
+```
 
 ---
 
@@ -63,16 +95,19 @@ The very first line on every boot is a device announce so a host can tell Huginn
 {"device":"HuginnESP","fw":"1.0","board":"esp32-s3","caps":["wifi","ble","display"]}
 ```
 
-`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (the `display` cap is S3-only). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
+`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (`display` is S3-only, `gps` appears only in GPS-enabled builds). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
 
 After the announce line, the stream is a mix of:
 
 - **Newline-delimited JSON** for raw scan results, one detection per line:
   ```json
   {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2_PSK"}
+  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2_PSK","lat":59.3293000,"lon":18.0686000}
   {"type":"BLE","mac":"11:22:33:44:55:66","name":"AirPods","rssi":-71}
   {"mode":"wifi","wifi_count":12,"ble_count":0}
   ```
+
+  `lat`/`lon` are only present in GPS-enabled builds and only when the module has a valid fix. Hosts should treat them as optional fields.
 - **Plaintext alert blocks** for high-signal events (Flipper Zero, AirTag, skimmer, pineapple/evil-twin), and `[BOOT]`-prefixed startup logs.
 
 The device also accepts commands on the same serial line (one per `\n`-terminated line):
@@ -87,6 +122,7 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `wardrive` | Tight ~4 s WiFi+BLE alternation tuned for moving captures (see below) |
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
+| `gps` | Print current GPS fix (`{"gps":"fix","lat":...,"lon":...,"speed_kph":...}` or `{"gps":"no_fix"}`); GPS-enabled builds only |
 
 #### Wardrive mode
 
@@ -197,6 +233,7 @@ src/
 ├── serial_cmd.h/cpp    # Serial command parser
 ├── runtime_config.h/cpp # `set`/`get` knobs (RAM-only, host-pushed)
 ├── scan_cycle.h/cpp    # Automatic scan rotation
+├── gps_reader.h/cpp    # NMEA GPS reader — compiled in only with HUGINN_HAS_GPS=1
 └── display_manager.h/cpp # 480×480 touch display UI (S3 only)
 docs/                   # Web flasher (GitHub Pages site)
 .github/workflows/      # CI: builds firmware and publishes the flasher
