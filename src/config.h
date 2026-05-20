@@ -2,10 +2,6 @@
 #define CONFIG_H
 
 // ----- Serial -----
-// 460800 8N1: gives ~4× headroom over the old 115200 cap so the BLE callback
-// doesn't stall in Serial.flush() when many advertisements arrive in dense
-// environments. ESP32-S3/C5 UART supports much higher, but 460800 is the
-// sweet spot for stable USB-CDC across hosts.
 #define SERIAL_BAUD 460800
 
 // ----- Firmware version -----
@@ -18,21 +14,7 @@
 #define BLE_SCAN_DURATION     8000
 #define PINEAP_SCAN_DURATION 10000
 
-// ----- Wardrive mode (per-channel scan + BLE alternation for moving captures) -----
-// Cycle = WiFi phase (per-channel scans through a Marauder-style weighted
-// schedule) + BLE phase. Phases are strictly exclusive on the shared 2.4 GHz
-// radio.
-//
-// WiFi phase budget caps the channel-list iteration. With ~50–120 ms per
-// channel and the schedule defined in scan_cycle.cpp:
-//   S3  (~20 channels, 2.4 only) → ~2 s natural completion
-//   C5  (~50 channels, dual-band) → ~5 s natural completion
-// 8000 ms gives both room with margin and matters only as a hang-safety
-// cap — under normal conditions the loop exits early when the schedule
-// is exhausted.
-//
-// BLE phase length is unchanged — 1500 ms covers all 3 BLE ad channels
-// with margin. Real cycle: ~3.5 s on S3, ~6.5 s on C5.
+// ----- Wardrive mode -----
 #define WARDRIVE_WIFI_DURATION_MS 8000
 #define WARDRIVE_BLE_DURATION_MS  1500
 

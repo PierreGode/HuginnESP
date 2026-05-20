@@ -14,22 +14,9 @@ struct WifiNetwork {
 
 void wifi_scanner_init();
 
-// Start an async WiFi scan across all channels. Results are printed
-// to Serial when wifi_scanner_process() is called.
 void wifi_scanner_start();
-
-// Start an async WiFi scan on a single channel (1-14 for 2.4 GHz,
-// 36-177 for 5 GHz). Used by wardrive mode for per-channel sweeps
-// with a weighted schedule — yields APs ~80 ms after the call
-// instead of waiting 1.5–3 s for a full sweep.
 void wifi_scanner_start_channel(uint8_t channel);
 
-// On-device BSSID dedup. When enabled, wifi_scanner_process() skips
-// emitting BSSIDs already seen in this dedup window. Used by wardrive
-// mode to suppress duplicate emissions across many per-channel scans —
-// each AP gets emitted once until reset. Ragnar's upsert handles
-// dedup on the host too, but on-device dedup saves serial bytes and
-// reduces host parse load.
 void wifi_scanner_set_dedup(bool enabled);
 void wifi_scanner_reset_dedup();
 
