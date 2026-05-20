@@ -55,7 +55,7 @@ Required for development or custom builds. This is a [PlatformIO](https://platfo
 
 ## The serial protocol
 
-Once flashed, the device starts auto-cycling through scan modes and emits results to USB serial at **115200 baud, 8N1**.
+Once flashed, the device starts auto-cycling through scan modes and emits results to USB serial at **460800 baud, 8N1**.
 
 The very first line on every boot is a device announce so a host can tell HuginnESP apart from other ESP32 firmware sharing the same USB bus:
 
@@ -152,7 +152,7 @@ import json
 import serial
 
 PORT = "COM8"          # or "/dev/ttyACM0" on Linux/macOS
-BAUD = 115200
+BAUD = 460800
 
 with serial.Serial(PORT, BAUD, timeout=1) as ser:
     # Optional: ask the device to start a specific scan
@@ -217,7 +217,7 @@ docs/                   # Web flasher (GitHub Pages site)
 │       ▼            ▼             │       │
 │  ┌─────────────────────┐        │       │
 │  │   Serial Output     │◄───────┘       │
-│  │   (115200 baud)     │                │
+│  │   (460800 baud)     │                │
 │  └─────────┬───────────┘                │
 │            │                             │
 │  ┌─────────▼───────────┐                │
