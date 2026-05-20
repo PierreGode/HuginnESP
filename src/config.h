@@ -18,20 +18,22 @@
 #define BLE_SCAN_DURATION     8000
 #define PINEAP_SCAN_DURATION 10000
 
-// ----- Wardrive mode (tight WiFi/BLE alternation for moving captures) -----
-// Cycle = WiFi phase (back-to-back scans) + BLE phase. The phases are
-// strictly exclusive on the shared 2.4 GHz radio.
+// ----- Wardrive mode (per-channel scan + BLE alternation for moving captures) -----
+// Cycle = WiFi phase (per-channel scans through a Marauder-style weighted
+// schedule) + BLE phase. Phases are strictly exclusive on the shared 2.4 GHz
+// radio.
 //
-// WiFi phase budget is generous so we can chain multiple full sweeps per
-// cycle — at ~30/120 ms per-channel dwell, an S3 2.4 GHz sweep finishes in
-// ~1.5 s and a C5 dual-band sweep in ~3 s. 5000 ms fits 2–3 S3 sweeps or 1
-// full C5 sweep with margin. Every completed sweep emits its full set of
-// JSON records; aborted sweeps emit nothing (the scan is restarted next
-// pass), so make the budget large enough for the slowest expected sweep.
+// WiFi phase budget caps the channel-list iteration. With ~50–120 ms per
+// channel and the schedule defined in scan_cycle.cpp:
+//   S3  (~20 channels, 2.4 only) → ~2 s natural completion
+//   C5  (~50 channels, dual-band) → ~5 s natural completion
+// 8000 ms gives both room with margin and matters only as a hang-safety
+// cap — under normal conditions the loop exits early when the schedule
+// is exhausted.
 //
 // BLE phase length is unchanged — 1500 ms covers all 3 BLE ad channels
-// with margin. Total cycle: ~6.5 s.
-#define WARDRIVE_WIFI_DURATION_MS 5000
+// with margin. Real cycle: ~3.5 s on S3, ~6.5 s on C5.
+#define WARDRIVE_WIFI_DURATION_MS 8000
 #define WARDRIVE_BLE_DURATION_MS  1500
 
 // ----- BLE parameters -----
