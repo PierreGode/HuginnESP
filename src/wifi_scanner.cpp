@@ -69,12 +69,15 @@ void wifi_scanner_start() {
     // per channel, which on a dual-band radio (≈50 channels incl. DFS)
     // pushes a full sweep past 10 s. We scan every channel on every
     // pass (mandatory for wardriving at 60 km/h — an AP is only in
-    // range for a few seconds), but with much tighter dwell windows:
-    // probe responses arrive in well under 80 ms, and the low min
-    // lets quiet channels drop through almost immediately. Net effect
-    // on the C5 is a full dual-band sweep in ≈2–3 s instead of ≈15 s.
-    cfg.scan_time.active.min = 20;
-    cfg.scan_time.active.max = 80;
+    // range for a few seconds), but with tighter dwell windows.
+    //
+    // min=30 ms ensures quiet channels still wait long enough for one
+    // probe response cycle (typical AP responds within 5–20 ms but some
+    // budget APs lag); max=120 ms catches slow responders without
+    // exceeding the Arduino default. Net sweep: ~1.5 s on S3 (2.4 GHz),
+    // ~3 s on C5 (dual-band).
+    cfg.scan_time.active.min = 30;
+    cfg.scan_time.active.max = 120;
 
     esp_err_t err = esp_wifi_scan_start(&cfg, /*block=*/false);
     if (err != ESP_OK) {

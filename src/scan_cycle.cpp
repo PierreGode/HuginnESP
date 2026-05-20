@@ -62,26 +62,45 @@ void scan_cycle_task(void* param) {
         // each radio an exclusive window per cycle.
         if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
             // Phase 1 — WiFi (BLE off so the radio is exclusively WiFi).
+            // Chain back-to-back scans within the WiFi phase: each
+            // completed sweep emits its full set of records, then we
+            // immediately start another. This uses the whole phase
+            // budget instead of going idle after a single sweep, which
+            // is the difference between one and three sweeps per cycle
+            // on the S3 (and one full sweep that actually completes
+            // instead of being aborted, on the C5).
             if (activeBle != BLE_MODE_OFF) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;
             }
-            wifi_scanner_start();
-            uint32_t t = 0;
-            while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-                vTaskDelay(pdMS_TO_TICKS(50));
-                t += 50;
-                int16_t r = wifi_scanner_poll();
-                if (r >= 0 || r == -2 /*failed*/) {
-                    wifi_scanner_process();
-                    break;
-                }
-                if (t >= g_wardriveWifiMs) {
-                    wifi_scanner_stop();
-                    break;
+            uint32_t phaseStart = millis();
+            int wardriveSweeps = 0;
+            bool deadlineHit = false;
+            while (g_manualOverride && g_currentMode == MODE_WARDRIVE
+                   && !deadlineHit
+                   && (millis() - phaseStart) < g_wardriveWifiMs) {
+                wifi_scanner_start();
+                // Wait for this sweep to complete or the phase deadline,
+                // whichever comes first. On natural completion, process
+                // and start the next sweep. On deadline, abort cleanly.
+                while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+                    if ((millis() - phaseStart) >= g_wardriveWifiMs) {
+                        wifi_scanner_stop();
+                        deadlineHit = true;
+                        break;
+                    }
+                    vTaskDelay(pdMS_TO_TICKS(50));
+                    int16_t r = wifi_scanner_poll();
+                    if (r >= 0 || r == -2 /*failed*/) {
+                        wifi_scanner_process();
+                        wardriveSweeps++;
+                        break;
+                    }
                 }
             }
             if (!(g_manualOverride && g_currentMode == MODE_WARDRIVE)) continue;
+            Serial.printf("[CYCLE] wardrive WiFi phase: %d sweep(s) in %ums\n",
+                          wardriveSweeps, (unsigned)(millis() - phaseStart));
 
             // Phase 2 — BLE_MODE_ALL for the configured window. Flipper /
             // AirTag / skimmer detections still fire passively from the

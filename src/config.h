@@ -19,9 +19,19 @@
 #define PINEAP_SCAN_DURATION 10000
 
 // ----- Wardrive mode (tight WiFi/BLE alternation for moving captures) -----
-// Tuned for ~60 km/h: 2.5s WiFi (one full-channel sweep) + 1.5s BLE
-// (covers all 3 ad channels with margin). 4s total cycle.
-#define WARDRIVE_WIFI_DURATION_MS 2500
+// Cycle = WiFi phase (back-to-back scans) + BLE phase. The phases are
+// strictly exclusive on the shared 2.4 GHz radio.
+//
+// WiFi phase budget is generous so we can chain multiple full sweeps per
+// cycle — at ~30/120 ms per-channel dwell, an S3 2.4 GHz sweep finishes in
+// ~1.5 s and a C5 dual-band sweep in ~3 s. 5000 ms fits 2–3 S3 sweeps or 1
+// full C5 sweep with margin. Every completed sweep emits its full set of
+// JSON records; aborted sweeps emit nothing (the scan is restarted next
+// pass), so make the budget large enough for the slowest expected sweep.
+//
+// BLE phase length is unchanged — 1500 ms covers all 3 BLE ad channels
+// with margin. Total cycle: ~6.5 s.
+#define WARDRIVE_WIFI_DURATION_MS 5000
 #define WARDRIVE_BLE_DURATION_MS  1500
 
 // ----- BLE parameters -----
