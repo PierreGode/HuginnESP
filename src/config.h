@@ -2,7 +2,11 @@
 #define CONFIG_H
 
 // ----- Serial -----
-#define SERIAL_BAUD 115200
+// 460800 8N1: gives ~4× headroom over the old 115200 cap so the BLE callback
+// doesn't stall in Serial.flush() when many advertisements arrive in dense
+// environments. ESP32-S3/C5 UART supports much higher, but 460800 is the
+// sweet spot for stable USB-CDC across hosts.
+#define SERIAL_BAUD 460800
 
 // ----- Firmware version -----
 // Bumped manually; emitted in the device announce line at boot. Should
