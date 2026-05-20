@@ -55,11 +55,16 @@ void scan_cycle_task(void* param) {
 
     for (;;) {
         // ── Wardrive mode ────────────────────────────────────────────────
-        // BLE_ALL runs continuously while WiFi scans loop back-to-back.
+        // Tight WiFi ↔ BLE alternation per the README. Running BLE_MODE_ALL
+        // in parallel with the WiFi scan starves WiFi: the BLE scanner sets
+        // interval=100 / window=99 which owns the shared 2.4 GHz radio ~99 %
+        // of the time, so WiFi completes with apCount=0. The fix is to give
+        // each radio an exclusive window per cycle.
         if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-            if (activeBle != BLE_MODE_ALL) {
-                ble_scanner_start(BLE_MODE_ALL);
-                activeBle = BLE_MODE_ALL;
+            // Phase 1 — WiFi (BLE off so the radio is exclusively WiFi).
+            if (activeBle != BLE_MODE_OFF) {
+                ble_scanner_stop();
+                activeBle = BLE_MODE_OFF;
             }
             wifi_scanner_start();
             uint32_t t = 0;
@@ -76,6 +81,21 @@ void scan_cycle_task(void* param) {
                     break;
                 }
             }
+            if (!(g_manualOverride && g_currentMode == MODE_WARDRIVE)) continue;
+
+            // Phase 2 — BLE_MODE_ALL for the configured window. Flipper /
+            // AirTag / skimmer detections still fire passively from the
+            // same stream.
+            ble_scanner_start(BLE_MODE_ALL);
+            activeBle = BLE_MODE_ALL;
+            uint32_t bleT = 0;
+            while (g_manualOverride && g_currentMode == MODE_WARDRIVE
+                   && bleT < g_wardriveBleMs) {
+                vTaskDelay(pdMS_TO_TICKS(50));
+                bleT += 50;
+            }
+            ble_scanner_stop();
+            activeBle = BLE_MODE_OFF;
             continue;
         }
 
