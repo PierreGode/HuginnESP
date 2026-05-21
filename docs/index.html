@@ -362,6 +362,9 @@
           <em>Huginn</em>, thought, and <em>Muninn</em>, memory.
           Bind one now to your vessel.
         </p>
+        <p class="verse" style="font-size: 0.85rem; margin-top: 0.5rem;">
+          WiFi &amp; BLE wardriving &middot; Flipper&nbsp;Zero / AirTag / Skimmer detection &middot; Optional GPS tagging
+        </p>
       </header>
 
       <div class="divider" aria-hidden="true">
@@ -406,6 +409,15 @@
           <strong>If the binding falters,</strong> hold the <code>BOOT</code> rune,
           tap <code>RESET</code>, release <code>BOOT</code> &mdash; then bid the raven enter.
           The C5 vessel must oft be coaxed by hand into the download trance.
+        </p>
+
+        <p class="rite" style="margin-top: 0.75rem;">
+          <strong>GPS tagging</strong> &mdash; wire any NMEA module (GT-U7, NEO-6M, …) to enable
+          <code>lat</code>/<code>lon</code> on every WiFi detection. Build a GPS-enabled image
+          from source with <code>pio run -e esp32s3box-gps</code> or
+          <code>pio run -e esp32c5-gps</code>. See the
+          <a href="https://github.com/PierreGode/HuginnESP#gps-wiring-optional">README</a>
+          for wiring details.
         </p>
 
         <div id="browserWarn" class="browser-warn">
