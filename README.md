@@ -10,14 +10,15 @@ WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning
 |---|---|---|---|
 | **Waveshare ESP32-S3-Touch-LCD-4B** | ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM) | WiFi 2.4 GHz + BLE 5 | 4" 480×480 RGB touch (GT911) |
 | **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
+| **Generic ESP32 DevKit** | Any ESP32-WROOM-32 / WROVER (≥ 4 MB flash) | WiFi 2.4 GHz + BLE 4.2 | none (headless) |
 
-Both boards run the same firmware behavior; the C5 build skips display code (`HUGINN_HAS_DISPLAY=0`).
+The generic ESP32 build (`esp32` / `esp32-gps`) targets classic dual-core ESP32 boards — DevKitC, NodeMCU-32S, Awok v3, and similar. It runs headless with 2.4 GHz WiFi + BLE, using a CP2102 or CH340 USB-serial chip. All three board types run the same firmware behavior; non-S3 builds skip display code (`HUGINN_HAS_DISPLAY=0`).
 
 ## Features
 
 | Feature | Description |
 |---|---|
-| **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3, dual-band on C5 |
+| **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3 and generic ESP32, dual-band on C5 |
 | **BLE Scan** | Scan BLE devices (MAC, name, RSSI, device type) |
 | **Flipper Zero Detection** | Identify Flipper Zero devices via BLE advertisement data |
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
@@ -57,6 +58,7 @@ Build with one of the GPS-enabled environments:
 ```
 pio run -e esp32s3box-gps
 pio run -e esp32c5-gps
+pio run -e esp32-gps
 ```
 
 ---

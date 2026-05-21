@@ -34,6 +34,8 @@ void setup() {
     const char* HUGINN_BOARD_NAME = "esp32-s3";
 #elif HUGINN_BOARD_C5
     const char* HUGINN_BOARD_NAME = "esp32-c5";
+#elif HUGINN_BOARD_GENERIC
+    const char* HUGINN_BOARD_NAME = "esp32";
 #else
     const char* HUGINN_BOARD_NAME = "unknown";
 #endif
@@ -56,6 +58,8 @@ void setup() {
     Serial.println("[BOOT] Board: ESP32-S3-Touch-LCD-4B (display)");
 #elif HUGINN_BOARD_C5
     Serial.println("[BOOT] Board: ESP32-C5-WIFI6-KIT (headless, dual-band Wi-Fi 6)");
+#elif HUGINN_BOARD_GENERIC
+    Serial.println("[BOOT] Board: Generic ESP32 (headless, 2.4 GHz)");
 #else
     Serial.println("[BOOT] Board: unknown");
 #endif
