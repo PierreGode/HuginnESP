@@ -39,6 +39,23 @@
 #define MAX_WIFI_NETWORKS  100
 #define MAX_BLE_DEVICES    100
 
+// ----- GPS (optional — enabled by -DHUGINN_HAS_GPS=1 build flag) -----
+// Override any of these from platformio.ini build_flags to match your board's
+// free GPIO pins. TX is declared but most receive-only modules leave it unconnected.
+#if HUGINN_HAS_GPS
+#ifndef GPS_UART_NUM
+#define GPS_UART_NUM   1
+#endif
+#ifndef GPS_RX_PIN
+#define GPS_RX_PIN    17
+#endif
+#ifndef GPS_TX_PIN
+#define GPS_TX_PIN    18
+#endif
+#define GPS_BAUD       9600
+#define GPS_TASK_STACK 4096
+#endif
+
 // ----- Skimmer suspicious names (defaults; runtime list lives in runtime_config) -----
 static const char* SKIMMER_NAMES_DEFAULT[] = {
     "HC-05", "HC-06", "HC-08",

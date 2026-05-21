@@ -1,6 +1,9 @@
 #include "wifi_scanner.h"
 #include "config.h"
 #include "runtime_config.h"
+#if HUGINN_HAS_GPS
+#include "gps_reader.h"
+#endif
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -155,9 +158,20 @@ void wifi_scanner_process() {
         }
 
         if (emitNow) {
-            // JSON output for Ragnar parser
+#if HUGINN_HAS_GPS
+            GpsPosition gp = gps_get_position();
+            if (gp.fix) {
+                Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\",\"lat\":%.7f,\"lon\":%.7f}\n",
+                              net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str(),
+                              gp.lat, gp.lon);
+            } else {
+                Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
+                              net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
+            }
+#else
             Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
                           net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
+#endif
         }
 
         // Track for evil-twin detection
