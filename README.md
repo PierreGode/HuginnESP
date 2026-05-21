@@ -1,6 +1,6 @@
 # HuginnESP
 
-WiFi & BLE security scanner firmware for ESP32. The device performs the radio scanning and pushes a live stream of detections out over USB serial — any host can consume the stream. The reference consumer is [Ragnar](https://github.com/PierreGode/Ragnar)'s wardriving engine, but the protocol is plain newline-delimited JSON so anything that can read a serial port will work.
+WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning and pushes a live stream of detections out over USB serial — any host can consume the stream. The reference consumer is [Ragnar](https://github.com/PierreGode/Ragnar)'s wardriving engine, but the protocol is plain newline-delimited JSON so anything that can read a serial port will work.
 
 ---
 
@@ -23,7 +23,6 @@ Both boards run the same firmware behavior; the C5 build skips display code (`HU
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
-| **Evil Twin / Pineapple** | Identify duplicate SSIDs with different BSSIDs |
 | **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
 | **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
