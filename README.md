@@ -18,13 +18,13 @@ Both boards run the same firmware behavior; the C5 build skips display code (`HU
 | Feature | Description |
 |---|---|
 | **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3, dual-band on C5 |
-| **BLE Scan** | Scan BLE devices (MAC, name, RSSI, device type) |
+| **BLE Scan** | Scan BLE devices (MAC, name, RSSI) — Flipper / AirTag / skimmer classification is emitted as separate alert lines |
 | **Flipper Zero Detection** | Identify Flipper Zero devices via BLE advertisement data |
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
-| **Evil Twin / Pineapple** | Identify duplicate SSIDs with different BSSIDs |
-| **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
+| **Evil Twin / Pineapple** | Flag a shared SSID advertised with _mixed_ security (e.g. an Open AP cloning a WPA2 network) — same-security mesh/repeater setups are not flagged |
+| **Status Display** | Live 480×480 dashboard — WiFi/BLE stats, security breakdown, session tally, and color-coded threat counts (S3 only) |
 | **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
 
@@ -41,7 +41,7 @@ Requirements:
 - Page must be served over HTTPS (the GitHub Pages site already is).
 - USB-C cable plugged into the **USB** port of the board (the native USB / USB-Serial-JTAG port — not a separate UART port if your board has one).
 
-Steps: open the page → "Bind the Raven" → pick the serial port → the installer auto-detects the chip family and flashes the matching image.
+Steps: open the page → click the **Bind** button for your board (**ESP32-S3** or **ESP32-C5**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button.
 
 ### Option 2 — Build from source (PlatformIO)
 
@@ -69,11 +69,17 @@ After the announce line, the stream is a mix of:
 
 - **Newline-delimited JSON** for raw scan results, one detection per line:
   ```json
-  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2_PSK"}
+  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2"}
   {"type":"BLE","mac":"11:22:33:44:55:66","name":"AirPods","rssi":-71}
-  {"mode":"wifi","wifi_count":12,"ble_count":0}
   ```
-- **Plaintext alert blocks** for high-signal events (Flipper Zero, AirTag, skimmer, pineapple/evil-twin), and `[BOOT]`-prefixed startup logs.
+  (`auth` is one of `Open`, `WEP`, `WPA`, `WPA2`, `WPA/WPA2`, `WPA2-Enterprise`, `WPA3`, `Unknown`.)
+- **Plaintext alert blocks** for high-signal events (Flipper Zero, AirTag, skimmer, pineapple/evil-twin), plus `[BOOT]` startup logs and `[CYCLE]` / `[WIFI]` progress logs.
+
+A compact JSON status line is printed **only in response to the `status` command** — it is not streamed continuously:
+
+```json
+{"mode":"wifi","wifi_count":12,"ble_count":0}
+```
 
 The device also accepts commands on the same serial line (one per `\n`-terminated line):
 
@@ -84,20 +90,20 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `blescan -a` | BLE scan all devices |
 | `capture -skimmer` | Start skimmer detection |
 | `pineap` | Start pineapple / evil-twin detection |
-| `wardrive` | Tight ~4 s WiFi+BLE alternation tuned for moving captures (see below) |
+| `wardrive` | Tight WiFi+BLE alternation tuned for moving captures (see below) |
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
 
 #### Wardrive mode
 
-The default auto-cycle has 8 steps totaling ~94 s, which means each radio is sampled too infrequently to reliably catch things while driving. Engaging `wardrive` switches to a tight 2-slot loop instead:
+In the default auto-cycle each WiFi scan runs for `wifi_scan_duration_ms` (15 s by default), with a pineapple/evil-twin check every fourth scan — each radio is sampled too infrequently to reliably catch things while driving. Engaging `wardrive` switches to a tight 2-phase loop tuned for movement:
 
-| Slot | Default | Effect |
+| Phase | Default | Effect |
 |---|---|---|
-| WiFi (`wardrive_wifi_ms`) | 2500 ms | One full 2.4 GHz channel sweep (the chip's minimum useful scan time) |
+| WiFi (`wardrive_wifi_ms`) | 8000 ms | A weighted per-channel sweep, capped at this value. High-traffic channels (2.4 GHz 1/6/11, plus the 5 GHz channels on the C5) are visited first and repeated, then the rest are swept once; each channel gets up to ~200 ms. The S3's 2.4 GHz list finishes well inside the cap (~3–4 s); the C5's longer dual-band list can use the full window. BSSIDs already emitted this session are de-duplicated on-device, so the host sees each AP once |
 | BLE all (`wardrive_ble_ms`) | 1500 ms | Covers all 3 BLE advertising channels with margin; Flipper / AirTag / skimmer detections fire passively from the same stream |
 
-That's a ~4 s cycle. At 60 km/h every WiFi AP in range (~10 s) gets caught 2–3 times; BLE coverage of regular advertisers (Flippers, AirTags, phones) reaches ~70–80 % per pass. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
+The WiFi phase revisits the busy channels frequently while still covering the whole band, so a moving capture catches in-range APs several times per pass. Lower `wardrive_wifi_ms` (min 1000 ms) for a faster loop with shallower per-channel coverage. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
 
 ### Runtime configuration
 
@@ -113,7 +119,7 @@ get all               # dump all knobs
 |---|---|---|---|
 | `wifi_scan_duration_ms` | uint | 500..600000 | Per-step WiFi scan time in the auto-cycle (and the pineapple scan timeout) |
 | `ble_spam_threshold` | uint | 1..10000 | Adverts from one MAC within the spam window before a `BLE Spam detected` alert fires |
-| `wardrive_wifi_ms` | uint | 1000..30000 | WiFi slot length in `wardrive` mode (default 2500 — one full channel sweep) |
+| `wardrive_wifi_ms` | uint | 1000..30000 | Ceiling on the per-channel WiFi sweep in `wardrive` mode (default 8000) |
 | `wardrive_ble_ms` | uint | 500..30000 | BLE slot length in `wardrive` mode (default 1500 — covers all 3 ad channels with margin) |
 | `skimmer_names` | csv | — | Comma-separated BLE device names treated as suspicious (case-insensitive). Replaces the list, doesn't append |
 
@@ -129,6 +135,8 @@ Every `set`/`get` returns a single JSON status line, e.g.:
 > get all
 {"ok":true,"key":"wifi_scan_duration_ms","value":15000}
 {"ok":true,"key":"ble_spam_threshold","value":8}
+{"ok":true,"key":"wardrive_wifi_ms","value":8000}
+{"ok":true,"key":"wardrive_ble_ms","value":1500}
 {"ok":true,"key":"skimmer_names","value":"HC-05,HC-06,JDY-08"}
 ```
 
@@ -197,7 +205,7 @@ src/
 ├── serial_cmd.h/cpp    # Serial command parser
 ├── runtime_config.h/cpp # `set`/`get` knobs (RAM-only, host-pushed)
 ├── scan_cycle.h/cpp    # Automatic scan rotation
-└── display_manager.h/cpp # 480×480 touch display UI (S3 only)
+└── display_manager.h/cpp # 480×480 status display UI (S3 only)
 docs/                   # Web flasher (GitHub Pages site)
 .github/workflows/      # CI: builds firmware and publishes the flasher
 ```
