@@ -67,7 +67,9 @@ pio run -e esp32-gps
 
 ### Option 1 — Web flasher (easiest, no toolchain)
 
-The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and serves prebuilt merged images for all three supported boards (Waveshare S3, Waveshare C5, and Seeed XIAO C5).
+The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It drives [esptool-js](https://github.com/espressif/esptool-js) **v0.6.0** directly (not esp-web-tools) and serves prebuilt merged images for all three supported boards (Waveshare S3, Waveshare C5, and Seeed XIAO C5).
+
+> **Why not esp-web-tools?** esp-web-tools is pinned to esptool-js v0.5.x, which lacks the ESP32-C5 native-USB (USB-Serial-JTAG) fixes added in esptool-js v0.6.0. The Seeed XIAO ESP32-C5 has **no external UART bridge**, so it can only be web-flashed over that native USB interface. HuginnESP therefore ships a lightweight flasher built on esptool-js v0.6.0 (see [docs/js/flasher.js](docs/js/flasher.js)). The page also includes a built-in **Serial Monitor** for watching the scan stream.
 
 Requirements:
 - A Chromium-based browser on desktop (Chrome, Edge, or Opera). Web Serial is required and is not available in Firefox or Safari.
