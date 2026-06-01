@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_HAS_DISPLAY=0 -DCORE_DEBUG_LEVEL=3",
+  "fqbn": "esp32:esp32:XIAO_ESP32C5:PartitionScheme=default_8MB",
+  "hardwareFolders": "C:\\Users\\pigo01\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.8,C:\\Users\\pigo01\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.8",
+  "otherLibrariesFolders": "C:\\Users\\pigo01\\OneDrive - Signup Software AB\\Documents\\Arduino\\libraries",
+  "sketchLocation": "C:\\Users\\pigo01\\OneDrive - Signup Software AB\\Documents\\GitHub\\HuginnESP\\build-sketch\\HuginnESP"
+}

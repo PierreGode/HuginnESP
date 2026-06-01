@@ -10,6 +10,10 @@
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500&display=swap"
       rel="stylesheet"
     />
+    <script
+      type="module"
+      src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
+    ></script>
     <style>
       :root {
         color-scheme: dark;
@@ -341,144 +345,6 @@
         h1 { letter-spacing: 0.12em; }
         .ritual { padding: 1.5rem 1rem; }
       }
-
-      /* secondary / ghost button (serial monitor, cancel, etc.) */
-      button.bind-ghost {
-        font-family: "Cinzel", serif;
-        font-weight: 600;
-        font-size: 0.9rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--bronze);
-        background: transparent;
-        border: 1px solid var(--bronze-dim);
-        padding: 0.85rem 1.8rem;
-        cursor: pointer;
-        border-radius: 2px;
-        transition: transform 0.15s ease, color 0.2s ease, border-color 0.2s ease;
-      }
-      button.bind-ghost:hover {
-        color: var(--rune);
-        border-color: var(--bronze);
-        transform: translateY(-1px);
-      }
-      button.sm { padding: 0.55rem 1.1rem; font-size: 0.78rem; letter-spacing: 0.12em; }
-
-      /* flash / serial overlay */
-      .flash-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 50;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.25rem;
-        background: rgba(5, 4, 3, 0.82);
-        backdrop-filter: blur(3px);
-      }
-      .flash-overlay[hidden] { display: none; }
-      .flash-dialog {
-        position: relative;
-        width: 100%;
-        max-width: 540px;
-        background: linear-gradient(180deg, rgba(21, 17, 13, 0.98) 0%, rgba(10, 9, 8, 0.98) 100%);
-        border: 1px solid rgba(200, 163, 93, 0.3);
-        border-radius: 4px;
-        padding: 1.75rem 1.5rem;
-        text-align: center;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-      }
-      .flash-dialog h3 {
-        font-family: "Cinzel", serif;
-        font-weight: 600;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        font-size: 1rem;
-        color: var(--bronze);
-        margin: 0 0 1.25rem;
-      }
-      .flash-progress-track {
-        height: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(200, 163, 93, 0.2);
-        border-radius: 999px;
-        overflow: hidden;
-      }
-      .flash-progress-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, var(--bronze-dim), var(--rune));
-        transition: width 0.2s ease;
-      }
-      .flash-pct {
-        margin: 0.5rem 0 0;
-        font-family: "Cinzel", serif;
-        color: var(--rune);
-        font-size: 0.85rem;
-        letter-spacing: 0.1em;
-        min-height: 1rem;
-      }
-      .flash-status {
-        margin: 0.35rem 0 1rem;
-        color: var(--bone-dim);
-        font-size: 0.9rem;
-      }
-      .flash-log {
-        text-align: left;
-        font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
-        font-size: 0.74rem;
-        line-height: 1.5;
-        color: var(--bone-dim);
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(200, 163, 93, 0.15);
-        border-radius: 3px;
-        padding: 0.75rem 0.9rem;
-        max-height: 240px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-        margin: 0 0 1rem;
-      }
-      .flash-confirm-row {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: center;
-        margin-bottom: 1rem;
-      }
-      .serial-baud {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        color: var(--bone-dim);
-        font-size: 0.85rem;
-      }
-      .serial-baud select {
-        background: var(--pitch);
-        color: var(--bone);
-        border: 1px solid var(--bronze-dim);
-        border-radius: 2px;
-        padding: 0.35rem 0.5rem;
-        font-family: inherit;
-      }
-      .serial-log-area { max-height: 320px; }
-      .serial-input-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-      }
-      .serial-input-row input {
-        flex: 1;
-        background: var(--pitch);
-        color: var(--bone);
-        border: 1px solid var(--bronze-dim);
-        border-radius: 2px;
-        padding: 0.5rem 0.7rem;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
-      }
-      .serial-actions { display: flex; gap: 0.75rem; justify-content: center; }
     </style>
   </head>
   <body>
@@ -488,9 +354,9 @@
       </div>
 
       <header class="title">
-        <div class="runes" aria-hidden="true">ᚺᚢᚷᛁᚾᚾ</div>
+        <div class="runes" aria-hidden="true">ᚺᛁᛇᚪᚾᚾ</div>
         <h1>HuginnESP</h1>
-        <p class="kenning">Raven of Thought · Bound in Silicon</p>
+        <p class="kenning">Raven of Thought &middot; Bound in Silicon</p>
         <p class="verse">
           Two ravens fly each dawn from Odin's shoulder &mdash;
           <em>Huginn</em>, thought, and <em>Muninn</em>, memory.
@@ -518,13 +384,35 @@
         </div>
 
         <div class="binders">
-          <button class="bind" onclick="flashDevice('manifest-esp32s3.json')">Bind &mdash; Waveshare S3</button>
-          <button class="bind" onclick="flashDevice('manifest-esp32c5.json')">Bind &mdash; Waveshare C5</button>
-          <button class="bind" onclick="flashDevice('manifest-xiao-esp32c5.json')">Bind &mdash; Seeed XIAO C5</button>
-        </div>
+          <esp-web-install-button manifest="manifest-esp32s3.json">
+            <button class="bind" slot="activate">Bind &mdash; ESP32-S3</button>
+            <button class="warn" slot="unsupported">
+              Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
+            </button>
+            <button class="warn" slot="not-allowed">
+              The runes require HTTPS to bind
+            </button>
+          </esp-web-install-button>
 
-        <div class="binders">
-          <button class="bind-ghost" onclick="openLogs()">Hearken &mdash; Serial Monitor</button>
+          <esp-web-install-button manifest="manifest-esp32c5.json">
+            <button class="bind" slot="activate">Bind &mdash; ESP32-C5</button>
+            <button class="warn" slot="unsupported">
+              Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
+            </button>
+            <button class="warn" slot="not-allowed">
+              The runes require HTTPS to bind
+            </button>
+          </esp-web-install-button>
+
+          <esp-web-install-button manifest="manifest-esp32c5-gps.json">
+            <button class="bind" slot="activate">Bind &mdash; ESP32-C5 + GPS</button>
+            <button class="warn" slot="unsupported">
+              Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
+            </button>
+            <button class="warn" slot="not-allowed">
+              The runes require HTTPS to bind
+            </button>
+          </esp-web-install-button>
         </div>
 
         <p class="rite">
@@ -547,7 +435,7 @@
           &middot;
           <code>Waveshare ESP32-C5-WIFI6-KIT</code>
           &middot;
-          <code>Seeed XIAO ESP32-C5</code>
+          <code>ESP32-C5 + GPS (GPIO 11/12)</code>
         </div>
         <div class="row">
           Forge mark: <code id="build">&mdash;</code>
@@ -556,49 +444,6 @@
           <a href="https://github.com/PierreGode/HuginnESP">github.com/PierreGode/HuginnESP</a>
         </div>
       </footer>
-    </div>
-
-    <!-- Flash overlay -->
-    <div id="flash-overlay" class="flash-overlay" hidden>
-      <div class="flash-dialog">
-        <h3>ᚺ The Binding ᚺ</h3>
-        <div class="flash-progress-track">
-          <div id="flash-bar" class="flash-progress-fill"></div>
-        </div>
-        <p id="flash-pct" class="flash-pct"></p>
-        <p id="flash-status" class="flash-status">Initializing&hellip;</p>
-        <pre id="flash-log" class="flash-log"></pre>
-        <div id="flash-confirm-row" class="flash-confirm-row" hidden>
-          <button id="flash-confirm-yes" class="bind">Bind Now</button>
-          <button id="flash-confirm-no" class="bind-ghost sm">Cancel</button>
-        </div>
-        <button id="flash-close" class="bind" hidden>Close</button>
-      </div>
-    </div>
-
-    <!-- Serial monitor overlay -->
-    <div id="serial-overlay" class="flash-overlay" hidden>
-      <div class="flash-dialog">
-        <h3>ᚱ Serial Monitor ᚱ</h3>
-        <div class="serial-baud">
-          <label for="serial-baud-select">Baud:</label>
-          <select id="serial-baud-select">
-            <option value="115200">115200</option>
-            <option value="230400">230400</option>
-            <option value="460800" selected>460800</option>
-            <option value="921600">921600</option>
-          </select>
-        </div>
-        <pre id="serial-log" class="flash-log serial-log-area"></pre>
-        <div class="serial-input-row">
-          <input id="serial-input" type="text" placeholder="Send command (e.g. status)…" autocomplete="off" />
-          <button id="serial-send" class="bind sm">Send</button>
-        </div>
-        <div class="serial-actions">
-          <button id="serial-clear" class="bind-ghost sm">Clear</button>
-          <button id="serial-close" class="bind-ghost sm">Disconnect</button>
-        </div>
-      </div>
     </div>
 
     <script>
@@ -612,6 +457,5 @@
         })
         .catch(() => {});
     </script>
-    <script type="module" src="js/flasher.js"></script>
   </body>
 </html>

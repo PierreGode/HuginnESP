@@ -1,0 +1,14 @@
+{
+  "name": "HuginnESP (ESP32-C5 + GPS)",
+  "version": "1.0",
+  "home_assistant_domain": "huginnesp",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C5",
+      "parts": [
+        { "path": "firmware/huginn-esp32c5-gps.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

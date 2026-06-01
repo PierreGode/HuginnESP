@@ -24,12 +24,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Cache PlatformIO & Arduino cores
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
             ~/.platformio
-            ~/.arduino15
             ~/.cache/pip
           key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
           restore-keys: pio-${{ runner.os }}-
@@ -45,25 +44,8 @@ jobs:
       - name: Build firmware (ESP32-C5)
         run: pio run -e esp32c5
 
-      # ── Seeed XIAO ESP32-C5 — separate arduino-cli pipeline ──
-      # The XIAO_ESP32C5 board definition only exists in the official
-      # Espressif esp32 core, so this target is built with arduino-cli
-      # rather than PlatformIO/pioarduino.
-      - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$PWD/bin" >> $GITHUB_PATH
-
-      - name: Install ESP32 Arduino core
-        run: |
-          arduino-cli config init --overwrite
-          arduino-cli config add board_manager.additional_urls \
-            "https://espressif.github.io/arduino-esp32/package_esp32_dev_index.json"
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32
-
-      - name: Build firmware (Seeed XIAO ESP32-C5)
-        run: bash scripts/build-xiao.sh
+      - name: Build firmware (ESP32-C5 + GPS)
+        run: pio run -e esp32c5-gps-altpins
 
       - name: Stage site
         run: |
@@ -99,27 +81,21 @@ jobs:
             0xe000   "$BOOT_APP0" \
             0x10000  "$C5_DIR/firmware.bin"
 
-          # ---- Seeed XIAO ESP32-C5 merged image (arduino-cli build) ----
-          # 8 MB flash; C5 bootloader at 0x2000 like the Waveshare C5 above.
-          # boot_app0.bin comes from the arduino15 esp32 core package.
-          XIAO_DIR=build-sketch/HuginnESP/build/esp32.esp32.XIAO_ESP32C5
-          BOOT_APP0_ARD=$(find ~/.arduino15/packages/esp32 -name boot_app0.bin | head -n 1)
-          if [ -z "$BOOT_APP0_ARD" ]; then
-            echo "arduino15 boot_app0.bin not found"; exit 1
-          fi
+          # ---- ESP32-C5 + GPS merged image ----
+          C5_GPS_DIR=.pio/build/esp32c5-gps-altpins
           python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-xiao-esp32c5.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
+            --output site/firmware/huginn-esp32c5-gps.bin \
+            --flash_mode dio --flash_freq 80m --flash_size 16MB \
             --target-offset 0x0 \
-            0x2000   "$XIAO_DIR/HuginnESP.ino.bootloader.bin" \
-            0x8000   "$XIAO_DIR/HuginnESP.ino.partitions.bin" \
-            0xe000   "$BOOT_APP0_ARD" \
-            0x10000  "$XIAO_DIR/HuginnESP.ino.bin"
+            0x2000   "$C5_GPS_DIR/bootloader.bin" \
+            0x8000   "$C5_GPS_DIR/partitions.bin" \
+            0xe000   "$BOOT_APP0" \
+            0x10000  "$C5_GPS_DIR/firmware.bin"
 
           VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
           echo "Version: $VERSION"
 
-          for m in manifest-esp32s3.json manifest-esp32c5.json manifest-xiao-esp32c5.json; do
+          for m in manifest-esp32s3.json manifest-esp32c5.json manifest-esp32c5-gps.json; do
             jq --arg v "$VERSION" '.version = $v' "site/$m" > "site/$m.tmp"
             mv "site/$m.tmp" "site/$m"
           done
