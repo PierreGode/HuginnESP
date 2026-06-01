@@ -35,14 +35,16 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 
 Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6M, L76, etc.).
 
-| GPS pin | ESP32 pin | Notes |
-|---|---|---|
-| VCC | 3.3 V | Most breakouts are 3.3 V — check your module |
-| GND | GND | |
-| TX (GPS out) | GPIO 17 (default `GPS_RX_PIN`) | This is the data line into the ESP32 |
-| RX (GPS in) | GPIO 18 (default `GPS_TX_PIN`) | Leave unconnected if module is receive-only |
+Default GPIO pins differ by board:
 
-To use different pins, override in `platformio.ini`:
+| GPS pin | Waveshare S3 / C5 | Seeed XIAO C5 | Notes |
+|---|---|---|---|
+| VCC | 3.3 V | 3.3 V | Most breakouts are 3.3 V — check your module |
+| GND | GND | GND | |
+| TX (GPS out) | GPIO 17 (`GPS_RX_PIN`) | GPIO 12 (`GPS_RX_PIN`) | Data line into the ESP32 |
+| RX (GPS in) | GPIO 18 (`GPS_TX_PIN`) | GPIO 11 (`GPS_TX_PIN`) | Leave unconnected if module is receive-only |
+
+To use different pins on Waveshare boards, override in `platformio.ini`:
 
 ```ini
 build_flags =
@@ -59,6 +61,7 @@ Build with one of the GPS-enabled environments:
 pio run -e esp32s3box-gps
 pio run -e esp32c5-gps
 pio run -e esp32-gps
+XIAO_GPS=1 bash scripts/build-xiao.sh
 ```
 
 ---

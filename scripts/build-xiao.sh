@@ -14,6 +14,7 @@
 #  source of truth (no committed duplication) and compile it.
 #
 #  Usage:   bash scripts/build-xiao.sh
+#           XIAO_GPS=1 bash scripts/build-xiao.sh   # GPS-enabled (RX=GPIO12, TX=GPIO11)
 #  Output:  build-sketch/HuginnESP/build/esp32.esp32.XIAO_ESP32C5/HuginnESP.ino.*
 #
 #  Prereqs: arduino-cli on PATH and the esp32 core installed:
@@ -38,6 +39,10 @@ SKETCH_DIR="build-sketch/HuginnESP"
 PARTITION="${XIAO_PARTITION:-default_8MB}"
 FQBN="esp32:esp32:XIAO_ESP32C5:PartitionScheme=${PARTITION}"
 
+# GPS support — set XIAO_GPS=1 to enable. Pins match Piglet's PINS_C5 map:
+# RX=GPIO12 (receives GPS TX output), TX=GPIO11 (sends to GPS RX input).
+GPS="${XIAO_GPS:-0}"
+
 echo "==> Assembling Arduino sketch at $SKETCH_DIR from src/"
 rm -rf "$SKETCH_DIR"
 mkdir -p "$SKETCH_DIR/src"
@@ -50,7 +55,13 @@ cat > "$SKETCH_DIR/HuginnESP.ino" <<'INO'
 // setup() and loop() are defined in src/main.cpp.
 INO
 
+GPS_FLAGS=""
+if [ "$GPS" = "1" ]; then
+  GPS_FLAGS=" -DHUGINN_HAS_GPS=1 -DGPS_RX_PIN=12 -DGPS_TX_PIN=11 -DGPS_UART_NUM=1"
+fi
+
 echo "==> Compiling for $FQBN"
+[ "$GPS" = "1" ] && echo "    GPS enabled: RX=GPIO12 TX=GPIO11"
 # Headless C5 build: same flags the PlatformIO esp32c5 env passes. Display
 # code is compiled out via HUGINN_HAS_DISPLAY=0 (so no GFX lib is needed).
 # Use compiler.cpp.extra_flags (empty by default) — NOT build.extra_flags,
@@ -59,7 +70,7 @@ echo "==> Compiling for $FQBN"
 # 8 MB PSRAM is simply left uninitialised (not required by this firmware).
 arduino-cli compile \
   --fqbn "$FQBN" \
-  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_HAS_DISPLAY=0 -DCORE_DEBUG_LEVEL=3" \
+  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_HAS_DISPLAY=0 -DCORE_DEBUG_LEVEL=3${GPS_FLAGS}" \
   --export-binaries \
   "$SKETCH_DIR"
 
