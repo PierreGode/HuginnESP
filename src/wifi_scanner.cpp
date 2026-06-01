@@ -161,9 +161,9 @@ void wifi_scanner_process() {
 #if HUGINN_HAS_GPS
             GpsPosition gp = gps_get_position();
             if (gp.fix) {
-                Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\",\"lat\":%.7f,\"lon\":%.7f}\n",
+                Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\",\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.1f}\n",
                               net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str(),
-                              gp.lat, gp.lon);
+                              gp.lat, gp.lon, gp.speed_kph);
             } else {
                 Serial.printf("{\"type\":\"WIFI\",\"mac\":\"%s\",\"ssid\":\"%s\",\"rssi\":%d,\"channel\":%d,\"auth\":\"%s\"}\n",
                               net.bssid.c_str(), net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());

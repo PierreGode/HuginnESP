@@ -1,6 +1,9 @@
 #include "ble_scanner.h"
 #include "config.h"
 #include "runtime_config.h"
+#if HUGINN_HAS_GPS
+#include "gps_reader.h"
+#endif
 #include <BLEDevice.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
@@ -153,10 +156,24 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
             return;
         }
 
-        // ---- All mode: output everything ----
+        // ---- All mode: output everything as JSON, GPS-tagged when fix available ----
         if (s_mode == BLE_MODE_ALL) {
+#if HUGINN_HAS_GPS
+            {
+                GpsPosition gp = gps_get_position();
+                if (gp.fix) {
+                    Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d,\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.1f}\n",
+                                  mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi,
+                                  gp.lat, gp.lon, gp.speed_kph);
+                } else {
+                    Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d}\n",
+                                  mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi);
+                }
+            }
+#else
             Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d}\n",
                           mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi);
+#endif
             Serial.flush();
 
             if (flipper) {
