@@ -1,6 +1,6 @@
 # HuginnESP
 
-WiFi & BLE security scanner firmware for ESP32. The device performs the radio scanning and pushes a live stream of detections out over USB serial — any host can consume the stream. The reference consumer is [Ragnar](https://github.com/PierreGode/Ragnar)'s wardriving engine, but the protocol is plain newline-delimited JSON so anything that can read a serial port will work.
+WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning and pushes a live stream of detections out over USB serial — any host can consume the stream. The reference consumer is [Ragnar](https://github.com/PierreGode/Ragnar)'s wardriving engine, but the protocol is plain newline-delimited JSON so anything that can read a serial port will work.
 
 ---
 
@@ -24,10 +24,42 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
-| **Evil Twin / Pineapple** | Flag a shared SSID advertised with _mixed_ security (e.g. an Open AP cloning a WPA2 network) — same-security mesh/repeater setups are not flagged |
-| **Status Display** | Live 480×480 dashboard — WiFi/BLE stats, security breakdown, session tally, and color-coded threat counts (S3 only) |
+| **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
 | **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
+| **GPS tagging** | Optional — when a NMEA GPS module is wired and has a fix, `lat`/`lon` are appended to every `WIFI` JSON line |
+
+---
+
+## GPS wiring (optional)
+
+Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6M, L76, etc.).
+
+| GPS pin | ESP32 pin | Notes |
+|---|---|---|
+| VCC | 3.3 V | Most breakouts are 3.3 V — check your module |
+| GND | GND | |
+| TX (GPS out) | GPIO 17 (default `GPS_RX_PIN`) | This is the data line into the ESP32 |
+| RX (GPS in) | GPIO 18 (default `GPS_TX_PIN`) | Leave unconnected if module is receive-only |
+
+To use different pins, override in `platformio.ini`:
+
+```ini
+build_flags =
+    ...
+    -DHUGINN_HAS_GPS=1
+    -DGPS_RX_PIN=16
+    -DGPS_TX_PIN=15
+    -DGPS_UART_NUM=1
+```
+
+Build with one of the GPS-enabled environments:
+
+```
+pio run -e esp32s3box-gps
+pio run -e esp32c5-gps
+pio run -e esp32-gps
+```
 
 ---
 
@@ -86,7 +118,7 @@ The very first line on every boot is a device announce so a host can tell Huginn
 {"device":"HuginnESP","fw":"1.0","board":"esp32-s3","caps":["wifi","ble","display"]}
 ```
 
-`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (the `display` cap is S3-only). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
+`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (`display` is S3-only, `gps` appears only in GPS-enabled builds). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
 
 After the announce line, the stream is a mix of:
 
@@ -116,6 +148,7 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `wardrive` | Tight WiFi+BLE alternation tuned for moving captures (see below) |
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
+| `gps` | Print current GPS fix (`{"gps":"fix","lat":...,"lon":...,"speed_kph":...}` or `{"gps":"no_fix"}`); GPS-enabled builds only |
 
 #### Wardrive mode
 
@@ -228,8 +261,8 @@ src/
 ├── serial_cmd.h/cpp    # Serial command parser
 ├── runtime_config.h/cpp # `set`/`get` knobs (RAM-only, host-pushed)
 ├── scan_cycle.h/cpp    # Automatic scan rotation
-└── display_manager.h/cpp # 480×480 status display UI (S3 only)
-scripts/build-xiao.sh   # arduino-cli build for the Seeed XIAO ESP32-C5
+├── gps_reader.h/cpp    # NMEA GPS reader — compiled in only with HUGINN_HAS_GPS=1
+└── display_manager.h/cpp # 480×480 touch display UI (S3 only)
 docs/                   # Web flasher (GitHub Pages site)
 .github/workflows/      # CI: builds firmware and publishes the flasher
 ```
@@ -237,32 +270,32 @@ docs/                   # Web flasher (GitHub Pages site)
 ## Architecture
 
 ```
-┌──────────────────────────────────────────┐
-│       ESP32-S3 / ESP32-C5                │
-│                                          │
-│  ┌─────────┐  ┌──────────┐  ┌─────────┐ │
-│  │ WiFi    │  │ BLE      │  │ Display │ │
-│  │ Scanner │  │ Scanner  │  │ Manager │ │
-│  │ (task)  │  │ (task)   │  │ (S3)    │ │
-│  └────┬────┘  └────┬─────┘  └────┬────┘ │
-│       │            │             │       │
-│       ▼            ▼             │       │
-│  ┌─────────────────────┐        │       │
-│  │   Serial Output     │◄───────┘       │
-│  │   (460800 baud)     │                │
-│  └─────────┬───────────┘                │
-│            │                             │
-│  ┌─────────▼───────────┐                │
-│  │  Serial Command     │                │
-│  │  Parser (incoming)  │                │
-│  └─────────────────────┘                │
-└──────────────┬───────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│       ESP32-S3 / ESP32-C5                       │
+│                                                 │
+│  ┌─────────┐  ┌──────────┐  ┌─────────┐        │
+│  │ WiFi    │  │ BLE      │  │ Display │        │
+│  │ Scanner │  │ Scanner  │  │ Manager │        │
+│  │ (task)  │  │ (task)   │  │ (S3)    │        │
+│  └────┬────┘  └────┬─────┘  └────┬────┘        │
+│       │            │             │              │
+│       ▼            ▼             │              │
+│  ┌─────────────────────┐        │  ┌─────────┐ │
+│  │   Serial Output     │◄───────┘  │ GPS     │ │
+│  │   (460800 baud)     │◄──────────│ Reader  │ │
+│  └─────────┬───────────┘           │ (task)  │ │
+│            │                       └────┬────┘ │
+│  ┌─────────▼───────────┐               │      │
+│  │  Serial Command     │          UART to     │
+│  │  Parser (incoming)  │          NMEA module │
+│  └─────────────────────┘                      │
+└──────────────┬────────────────────────────────┘
                │ USB Serial (JSON lines)
                ▼
-┌──────────────────────────────────────────┐
-│  Any host: Ragnar (Raspberry Pi),        │
-│  a Python script, Home Assistant, ...    │
-└──────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  Any host: Ragnar (Raspberry Pi),               │
+│  a Python script, Home Assistant, ...           │
+└─────────────────────────────────────────────────┘
 ```
 
 ## License

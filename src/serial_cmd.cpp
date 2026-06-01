@@ -4,6 +4,9 @@
 #include "scan_cycle.h"
 #include "config.h"
 #include "runtime_config.h"
+#if HUGINN_HAS_GPS
+#include "gps_reader.h"
+#endif
 
 volatile ScanMode g_currentMode   = MODE_AUTO_CYCLE;
 volatile bool     g_manualOverride = false;
@@ -80,6 +83,19 @@ static void handleCommand(const String& cmd) {
                       scanModeName(g_currentMode),
                       wifi_scanner_count(),
                       ble_scanner_count());
+
+    } else if (c == "gps") {
+#if HUGINN_HAS_GPS
+        GpsPosition gp = gps_get_position();
+        if (gp.fix) {
+            Serial.printf("{\"gps\":\"fix\",\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.1f}\n",
+                          gp.lat, gp.lon, gp.speed_kph);
+        } else {
+            Serial.println("{\"gps\":\"no_fix\"}");
+        }
+#else
+        Serial.println("{\"error\":\"GPS not compiled in\"}");
+#endif
     }
 }
 
