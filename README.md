@@ -10,8 +10,9 @@ WiFi & BLE security scanner firmware for ESP32. The device performs the radio sc
 |---|---|---|---|
 | **Waveshare ESP32-S3-Touch-LCD-4B** | ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM) | WiFi 2.4 GHz + BLE 5 | 4" 480×480 RGB touch (GT911) |
 | **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
+| **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
 
-Both boards run the same firmware behavior; the C5 build skips display code (`HUGINN_HAS_DISPLAY=0`).
+All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The two C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
 
 ## Features
 
@@ -34,14 +35,14 @@ Both boards run the same firmware behavior; the C5 build skips display code (`HU
 
 ### Option 1 — Web flasher (easiest, no toolchain)
 
-The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and serves prebuilt merged images for both supported boards (`esp32s3box`, `esp32c5`)
+The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and serves prebuilt merged images for all three supported boards (Waveshare S3, Waveshare C5, and Seeed XIAO C5).
 
 Requirements:
 - A Chromium-based browser on desktop (Chrome, Edge, or Opera). Web Serial is required and is not available in Firefox or Safari.
 - Page must be served over HTTPS (the GitHub Pages site already is).
 - USB-C cable plugged into the **USB** port of the board (the native USB / USB-Serial-JTAG port — not a separate UART port if your board has one).
 
-Steps: open the page → click the **Bind** button for your board (**ESP32-S3** or **ESP32-C5**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button.
+Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, or **Seeed XIAO C5**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the two C5 buttons are both ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO) — pick the one matching your physical board.
 
 ### Option 2 — Build from source (PlatformIO)
 
@@ -50,6 +51,28 @@ Required for development or custom builds. This is a [PlatformIO](https://platfo
 > **Note:** After flashing, the USB port re-enumerates. The combined upload+monitor command handles this automatically.
 
 > **Why pioarduino?** The stock PlatformIO espressif32 platform ships Arduino core 2.x (ESP-IDF 4.4), which has broken BLE on ESP32-S3 and no ESP32-C5 board definitions at all. pioarduino provides the newer cores where both work.
+
+### Option 3 — Build from source (arduino-cli, Seeed XIAO ESP32-C5)
+
+The Seeed XIAO ESP32-C5 uses a **separate pipeline** because its board definition (`XIAO_ESP32C5`) lives only in the official Espressif esp32 Arduino core — pioarduino ships only the C5 *devkit*/Waveshare board. So this target is built with [arduino-cli](https://arduino.github.io/arduino-cli/) instead of PlatformIO.
+
+One-time setup:
+
+```sh
+arduino-cli config init
+arduino-cli config add board_manager.additional_urls \
+  https://espressif.github.io/arduino-esp32/package_esp32_dev_index.json
+arduino-cli core update-index
+arduino-cli core install esp32:esp32
+```
+
+Build (assembles a throwaway sketch from `src/` and compiles for `XIAO_ESP32C5`):
+
+```sh
+bash scripts/build-xiao.sh
+```
+
+The merged web-flasher image is produced by CI; to flash a local build directly, point esptool at the binaries in `build-sketch/HuginnESP/build/esp32.esp32.XIAO_ESP32C5/`. The XIAO C5 has 8 MB flash, so the partition scheme defaults to `default_8MB` (3 MB app) — override with e.g. `XIAO_PARTITION=huge_app bash scripts/build-xiao.sh` if needed. The same firmware (no display) runs as on the Waveshare C5.
 
 ---
 
@@ -206,6 +229,7 @@ src/
 ├── runtime_config.h/cpp # `set`/`get` knobs (RAM-only, host-pushed)
 ├── scan_cycle.h/cpp    # Automatic scan rotation
 └── display_manager.h/cpp # 480×480 status display UI (S3 only)
+scripts/build-xiao.sh   # arduino-cli build for the Seeed XIAO ESP32-C5
 docs/                   # Web flasher (GitHub Pages site)
 .github/workflows/      # CI: builds firmware and publishes the flasher
 ```
