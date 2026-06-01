@@ -10,16 +10,16 @@ WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning
 |---|---|---|---|
 | **Waveshare ESP32-S3-Touch-LCD-4B** | ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM) | WiFi 2.4 GHz + BLE 5 | 4" 480×480 RGB touch (GT911) |
 | **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
-| **Generic ESP32 DevKit** | Any ESP32-WROOM-32 / WROVER (≥ 4 MB flash) | WiFi 2.4 GHz + BLE 4.2 | none (headless) |
+| **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
 
-The generic ESP32 build (`esp32` / `esp32-gps`) targets classic dual-core ESP32 boards — DevKitC, NodeMCU-32S, Awok v3, and similar. It runs headless with 2.4 GHz WiFi + BLE, using a CP2102 or CH340 USB-serial chip. All three board types run the same firmware behavior; non-S3 builds skip display code (`HUGINN_HAS_DISPLAY=0`).
+All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The two C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
 
 ## Features
 
 | Feature | Description |
 |---|---|
-| **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3 and generic ESP32, dual-band on C5 |
-| **BLE Scan** | Scan BLE devices (MAC, name, RSSI, device type) |
+| **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3, dual-band on C5 |
+| **BLE Scan** | Scan BLE devices (MAC, name, RSSI) — Flipper / AirTag / skimmer classification is emitted as separate alert lines |
 | **Flipper Zero Detection** | Identify Flipper Zero devices via BLE advertisement data |
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
@@ -67,14 +67,16 @@ pio run -e esp32-gps
 
 ### Option 1 — Web flasher (easiest, no toolchain)
 
-The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and serves prebuilt merged images for both supported boards (`esp32s3box`, `esp32c5`)
+The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It drives [esptool-js](https://github.com/espressif/esptool-js) **v0.6.0** directly (not esp-web-tools) and serves prebuilt merged images for all three supported boards (Waveshare S3, Waveshare C5, and Seeed XIAO C5).
+
+> **Why not esp-web-tools?** esp-web-tools is pinned to esptool-js v0.5.x, which lacks the ESP32-C5 native-USB (USB-Serial-JTAG) fixes added in esptool-js v0.6.0. The Seeed XIAO ESP32-C5 has **no external UART bridge**, so it can only be web-flashed over that native USB interface. HuginnESP therefore ships a lightweight flasher built on esptool-js v0.6.0 (see [docs/js/flasher.js](docs/js/flasher.js)). The page also includes a built-in **Serial Monitor** for watching the scan stream.
 
 Requirements:
 - A Chromium-based browser on desktop (Chrome, Edge, or Opera). Web Serial is required and is not available in Firefox or Safari.
 - Page must be served over HTTPS (the GitHub Pages site already is).
 - USB-C cable plugged into the **USB** port of the board (the native USB / USB-Serial-JTAG port — not a separate UART port if your board has one).
 
-Steps: open the page → "Bind the Raven" → pick the serial port → the installer auto-detects the chip family and flashes the matching image.
+Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, or **Seeed XIAO C5**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the two C5 buttons are both ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO) — pick the one matching your physical board.
 
 ### Option 2 — Build from source (PlatformIO)
 
@@ -83,6 +85,28 @@ Required for development or custom builds. This is a [PlatformIO](https://platfo
 > **Note:** After flashing, the USB port re-enumerates. The combined upload+monitor command handles this automatically.
 
 > **Why pioarduino?** The stock PlatformIO espressif32 platform ships Arduino core 2.x (ESP-IDF 4.4), which has broken BLE on ESP32-S3 and no ESP32-C5 board definitions at all. pioarduino provides the newer cores where both work.
+
+### Option 3 — Build from source (arduino-cli, Seeed XIAO ESP32-C5)
+
+The Seeed XIAO ESP32-C5 uses a **separate pipeline** because its board definition (`XIAO_ESP32C5`) lives only in the official Espressif esp32 Arduino core — pioarduino ships only the C5 *devkit*/Waveshare board. So this target is built with [arduino-cli](https://arduino.github.io/arduino-cli/) instead of PlatformIO.
+
+One-time setup:
+
+```sh
+arduino-cli config init
+arduino-cli config add board_manager.additional_urls \
+  https://espressif.github.io/arduino-esp32/package_esp32_dev_index.json
+arduino-cli core update-index
+arduino-cli core install esp32:esp32
+```
+
+Build (assembles a throwaway sketch from `src/` and compiles for `XIAO_ESP32C5`):
+
+```sh
+bash scripts/build-xiao.sh
+```
+
+The merged web-flasher image is produced by CI; to flash a local build directly, point esptool at the binaries in `build-sketch/HuginnESP/build/esp32.esp32.XIAO_ESP32C5/`. The XIAO C5 has 8 MB flash, so the partition scheme defaults to `default_8MB` (3 MB app) — override with e.g. `XIAO_PARTITION=huge_app bash scripts/build-xiao.sh` if needed. The same firmware (no display) runs as on the Waveshare C5.
 
 ---
 
@@ -102,14 +126,17 @@ After the announce line, the stream is a mix of:
 
 - **Newline-delimited JSON** for raw scan results, one detection per line:
   ```json
-  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2_PSK"}
-  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2_PSK","lat":59.3293000,"lon":18.0686000}
+  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2"}
   {"type":"BLE","mac":"11:22:33:44:55:66","name":"AirPods","rssi":-71}
-  {"mode":"wifi","wifi_count":12,"ble_count":0}
   ```
+  (`auth` is one of `Open`, `WEP`, `WPA`, `WPA2`, `WPA/WPA2`, `WPA2-Enterprise`, `WPA3`, `Unknown`.)
+- **Plaintext alert blocks** for high-signal events (Flipper Zero, AirTag, skimmer, pineapple/evil-twin), plus `[BOOT]` startup logs and `[CYCLE]` / `[WIFI]` progress logs.
 
-  `lat`/`lon` are only present in GPS-enabled builds and only when the module has a valid fix. Hosts should treat them as optional fields.
-- **Plaintext alert blocks** for high-signal events (Flipper Zero, AirTag, skimmer, pineapple/evil-twin), and `[BOOT]`-prefixed startup logs.
+A compact JSON status line is printed **only in response to the `status` command** — it is not streamed continuously:
+
+```json
+{"mode":"wifi","wifi_count":12,"ble_count":0}
+```
 
 The device also accepts commands on the same serial line (one per `\n`-terminated line):
 
@@ -120,21 +147,21 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `blescan -a` | BLE scan all devices |
 | `capture -skimmer` | Start skimmer detection |
 | `pineap` | Start pineapple / evil-twin detection |
-| `wardrive` | Tight ~4 s WiFi+BLE alternation tuned for moving captures (see below) |
+| `wardrive` | Tight WiFi+BLE alternation tuned for moving captures (see below) |
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
 | `gps` | Print current GPS fix (`{"gps":"fix","lat":...,"lon":...,"speed_kph":...}` or `{"gps":"no_fix"}`); GPS-enabled builds only |
 
 #### Wardrive mode
 
-The default auto-cycle has 8 steps totaling ~94 s, which means each radio is sampled too infrequently to reliably catch things while driving. Engaging `wardrive` switches to a tight 2-slot loop instead:
+In the default auto-cycle each WiFi scan runs for `wifi_scan_duration_ms` (15 s by default), with a pineapple/evil-twin check every fourth scan — each radio is sampled too infrequently to reliably catch things while driving. Engaging `wardrive` switches to a tight 2-phase loop tuned for movement:
 
-| Slot | Default | Effect |
+| Phase | Default | Effect |
 |---|---|---|
-| WiFi (`wardrive_wifi_ms`) | 2500 ms | One full 2.4 GHz channel sweep (the chip's minimum useful scan time) |
+| WiFi (`wardrive_wifi_ms`) | 8000 ms | A weighted per-channel sweep, capped at this value. High-traffic channels (2.4 GHz 1/6/11, plus the 5 GHz channels on the C5) are visited first and repeated, then the rest are swept once; each channel gets up to ~200 ms. The S3's 2.4 GHz list finishes well inside the cap (~3–4 s); the C5's longer dual-band list can use the full window. BSSIDs already emitted this session are de-duplicated on-device, so the host sees each AP once |
 | BLE all (`wardrive_ble_ms`) | 1500 ms | Covers all 3 BLE advertising channels with margin; Flipper / AirTag / skimmer detections fire passively from the same stream |
 
-That's a ~4 s cycle. At 60 km/h every WiFi AP in range (~10 s) gets caught 2–3 times; BLE coverage of regular advertisers (Flippers, AirTags, phones) reaches ~70–80 % per pass. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
+The WiFi phase revisits the busy channels frequently while still covering the whole band, so a moving capture catches in-range APs several times per pass. Lower `wardrive_wifi_ms` (min 1000 ms) for a faster loop with shallower per-channel coverage. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
 
 ### Runtime configuration
 
@@ -150,7 +177,7 @@ get all               # dump all knobs
 |---|---|---|---|
 | `wifi_scan_duration_ms` | uint | 500..600000 | Per-step WiFi scan time in the auto-cycle (and the pineapple scan timeout) |
 | `ble_spam_threshold` | uint | 1..10000 | Adverts from one MAC within the spam window before a `BLE Spam detected` alert fires |
-| `wardrive_wifi_ms` | uint | 1000..30000 | WiFi slot length in `wardrive` mode (default 2500 — one full channel sweep) |
+| `wardrive_wifi_ms` | uint | 1000..30000 | Ceiling on the per-channel WiFi sweep in `wardrive` mode (default 8000) |
 | `wardrive_ble_ms` | uint | 500..30000 | BLE slot length in `wardrive` mode (default 1500 — covers all 3 ad channels with margin) |
 | `skimmer_names` | csv | — | Comma-separated BLE device names treated as suspicious (case-insensitive). Replaces the list, doesn't append |
 
@@ -166,6 +193,8 @@ Every `set`/`get` returns a single JSON status line, e.g.:
 > get all
 {"ok":true,"key":"wifi_scan_duration_ms","value":15000}
 {"ok":true,"key":"ble_spam_threshold","value":8}
+{"ok":true,"key":"wardrive_wifi_ms","value":8000}
+{"ok":true,"key":"wardrive_ble_ms","value":1500}
 {"ok":true,"key":"skimmer_names","value":"HC-05,HC-06,JDY-08"}
 ```
 
