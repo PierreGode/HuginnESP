@@ -385,7 +385,7 @@
 
         <div class="binders">
           <esp-web-install-button manifest="manifest-esp32s3.json">
-            <button class="bind" slot="activate">Bind &mdash; ESP32-S3</button>
+            <button class="bind" slot="activate">Bind &mdash; Waveshare S3</button>
             <button class="warn" slot="unsupported">
               Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
             </button>
@@ -395,7 +395,17 @@
           </esp-web-install-button>
 
           <esp-web-install-button manifest="manifest-esp32c5.json">
-            <button class="bind" slot="activate">Bind &mdash; ESP32-C5</button>
+            <button class="bind" slot="activate">Bind &mdash; Waveshare C5</button>
+            <button class="warn" slot="unsupported">
+              Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
+            </button>
+            <button class="warn" slot="not-allowed">
+              The runes require HTTPS to bind
+            </button>
+          </esp-web-install-button>
+
+          <esp-web-install-button manifest="manifest-xiao-esp32c5.json">
+            <button class="bind" slot="activate">Bind &mdash; Seeed XIAO C5</button>
             <button class="warn" slot="unsupported">
               Thy browser knows not Web Serial &mdash; summon Chrome, Edge, or Opera
             </button>
@@ -424,6 +434,8 @@
           <code>Waveshare ESP32-S3-Touch-LCD-4B</code>
           &middot;
           <code>Waveshare ESP32-C5-WIFI6-KIT</code>
+          &middot;
+          <code>Seeed XIAO ESP32-C5</code>
         </div>
         <div class="row">
           Forge mark: <code id="build">&mdash;</code>
