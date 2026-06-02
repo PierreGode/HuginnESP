@@ -161,7 +161,7 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 
 #### Wardrive mode
 
-In the default auto-cycle each WiFi scan runs for `wifi_scan_duration_ms` (15 s by default), with a pineapple/evil-twin check every fourth scan — each radio is sampled too infrequently to reliably catch things while driving. Engaging `wardrive` switches to a tight 2-phase loop tuned for movement:
+In the default auto-cycle each WiFi scan runs for `wifi_scan_duration_ms` (8 s by default), with a pineapple/evil-twin check every eighth scan — each radio is sampled more frequently than before. Engaging `wardrive` switches to a tight 2-phase loop tuned for movement:
 
 | Phase | Default | Effect |
 |---|---|---|
@@ -186,6 +186,7 @@ get all               # dump all knobs
 | `ble_spam_threshold` | uint | 1..10000 | Adverts from one MAC within the spam window before a `BLE Spam detected` alert fires |
 | `wardrive_wifi_ms` | uint | 1000..30000 | Ceiling on the per-channel WiFi sweep in `wardrive` mode (default 8000) |
 | `wardrive_ble_ms` | uint | 500..30000 | BLE slot length in `wardrive` mode (default 1500 — covers all 3 ad channels with margin) |
+| `pineapple_every_n` | uint | 0..1000 | Run periodic pineapple check every N WiFi scans (`0` disables periodic checks; manual `pineap` still works) |
 | `skimmer_names` | csv | — | Comma-separated BLE device names treated as suspicious (case-insensitive). Replaces the list, doesn't append |
 
 Every `set`/`get` returns a single JSON status line, e.g.:
@@ -198,10 +199,11 @@ Every `set`/`get` returns a single JSON status line, e.g.:
 > set wifi_scan_duration_ms abc
 {"error":"bad value (range 500..600000)"}
 > get all
-{"ok":true,"key":"wifi_scan_duration_ms","value":15000}
+{"ok":true,"key":"wifi_scan_duration_ms","value":8000}
 {"ok":true,"key":"ble_spam_threshold","value":8}
 {"ok":true,"key":"wardrive_wifi_ms","value":8000}
 {"ok":true,"key":"wardrive_ble_ms","value":1500}
+{"ok":true,"key":"pineapple_every_n","value":8}
 {"ok":true,"key":"skimmer_names","value":"HC-05,HC-06,JDY-08"}
 ```
 

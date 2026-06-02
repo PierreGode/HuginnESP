@@ -37,9 +37,6 @@ static const uint8_t kWardriveChannels[] = {
 static const size_t kWardriveChannelsLen =
     sizeof(kWardriveChannels) / sizeof(kWardriveChannels[0]);
 
-// Run a pineapple check every this many WiFi scans.
-static const int PINEAPPLE_EVERY_N = 4;
-
 void scan_cycle_init() {
     s_running = true;
 }
@@ -61,8 +58,8 @@ bool scan_cycle_is_running() {
 static void wifi_wait_and_process(uint32_t timeoutMs) {
     uint32_t elapsed = 0;
     while (elapsed < timeoutMs && !g_manualOverride) {
-        vTaskDelay(pdMS_TO_TICKS(50));
-        elapsed += 50;
+        vTaskDelay(pdMS_TO_TICKS(20));
+        elapsed += 20;
         int16_t r = wifi_scanner_poll();
         if (r >= 0 || r == -2 /*failed*/) {
             wifi_scanner_process();
@@ -132,13 +129,13 @@ void scan_cycle_task(void* param) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;
             }
-            vTaskDelay(pdMS_TO_TICKS(500));
+            vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
 
         // ── Periodic pineapple check ──────────────────────────────────────
         // Stop BLE so the dedicated WiFi scan gets clean radio access.
-        if (wifiScans > 0 && (wifiScans % PINEAPPLE_EVERY_N) == 0) {
+        if (g_pineappleEveryN > 0 && wifiScans > 0 && (wifiScans % (int)g_pineappleEveryN) == 0) {
             if (activeBle != BLE_MODE_OFF) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;

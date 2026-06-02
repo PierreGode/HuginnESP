@@ -10,9 +10,13 @@
 #define HUGINN_FW_VERSION "1.0"
 
 // ----- Scan durations (ms) -----
-#define WIFI_SCAN_DURATION   15000
+#define WIFI_SCAN_DURATION    8000
 #define BLE_SCAN_DURATION     8000
 #define PINEAP_SCAN_DURATION 10000
+
+// Run periodic pineapple/evil-twin check every N completed WiFi scans.
+// Set to 0 to disable periodic checks (manual `pineap` command still works).
+#define PINEAPPLE_EVERY_N_DEFAULT 8
 
 // ----- Wardrive mode -----
 #define WARDRIVE_WIFI_DURATION_MS 8000

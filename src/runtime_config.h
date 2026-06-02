@@ -19,6 +19,7 @@ extern volatile uint32_t g_wifiScanDurationMs;
 extern volatile uint32_t g_bleSpamThreshold;
 extern volatile uint32_t g_wardriveWifiMs;
 extern volatile uint32_t g_wardriveBleMs;
+extern volatile uint32_t g_pineappleEveryN;
 
 bool   isSkimmerName(const String& name);
 String getSkimmerNamesCsv();

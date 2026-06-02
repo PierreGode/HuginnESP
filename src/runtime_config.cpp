@@ -6,6 +6,7 @@ volatile uint32_t g_wifiScanDurationMs = WIFI_SCAN_DURATION;
 volatile uint32_t g_bleSpamThreshold   = BLE_SPAM_THRESHOLD;
 volatile uint32_t g_wardriveWifiMs     = WARDRIVE_WIFI_DURATION_MS;
 volatile uint32_t g_wardriveBleMs      = WARDRIVE_BLE_DURATION_MS;
+volatile uint32_t g_pineappleEveryN    = PINEAPPLE_EVERY_N_DEFAULT;
 
 static SemaphoreHandle_t  s_skimmerMutex = nullptr;
 static std::vector<String> s_skimmerNames;
@@ -125,6 +126,16 @@ static bool handleSet(const String& key, const String& value) {
         printOkUint(key.c_str(), v);
         return true;
     }
+    if (key == "pineapple_every_n") {
+        uint32_t v;
+        if (!parseUint(value, v) || v > 1000) {
+            printErr("bad value (range 0..1000)");
+            return true;
+        }
+        g_pineappleEveryN = v;
+        printOkUint(key.c_str(), v);
+        return true;
+    }
     if (key == "skimmer_names") {
         setSkimmerNamesFromCsv(value);
         printOkStr(key.c_str(), getSkimmerNamesCsv());
@@ -139,12 +150,14 @@ static bool handleGet(const String& key) {
     if (key == "ble_spam_threshold")    { printOkUint(key.c_str(), g_bleSpamThreshold);   return true; }
     if (key == "wardrive_wifi_ms")      { printOkUint(key.c_str(), g_wardriveWifiMs);     return true; }
     if (key == "wardrive_ble_ms")       { printOkUint(key.c_str(), g_wardriveBleMs);      return true; }
+    if (key == "pineapple_every_n")     { printOkUint(key.c_str(), g_pineappleEveryN);    return true; }
     if (key == "skimmer_names")         { printOkStr (key.c_str(), getSkimmerNamesCsv()); return true; }
     if (key == "all") {
         printOkUint("wifi_scan_duration_ms", g_wifiScanDurationMs);
         printOkUint("ble_spam_threshold",    g_bleSpamThreshold);
         printOkUint("wardrive_wifi_ms",      g_wardriveWifiMs);
         printOkUint("wardrive_ble_ms",       g_wardriveBleMs);
+        printOkUint("pineapple_every_n",     g_pineappleEveryN);
         printOkStr ("skimmer_names",         getSkimmerNamesCsv());
         return true;
     }
