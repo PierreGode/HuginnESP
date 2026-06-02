@@ -88,8 +88,8 @@ static void handleCommand(const String& cmd) {
 #if HUGINN_HAS_GPS
         GpsPosition gp = gps_get_position();
         if (gp.fix) {
-            Serial.printf("{\"gps\":\"fix\",\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.1f}\n",
-                          gp.lat, gp.lon, gp.speed_kph);
+            Serial.printf("{\"gps\":\"fix\",\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.1f,\"speed_mps\":%.2f}\n",
+                          gp.lat, gp.lon, gp.speed_kph, gp.speed_kph / 3.6f);
         } else {
             Serial.println("{\"gps\":\"no_fix\"}");
         }

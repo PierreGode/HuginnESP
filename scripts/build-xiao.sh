@@ -51,15 +51,15 @@ cat > "$SKETCH_DIR/HuginnESP.ino" <<'INO'
 INO
 
 echo "==> Compiling for $FQBN"
-# Headless C5 build: same flags the PlatformIO esp32c5 env passes. Display
-# code is compiled out via HUGINN_HAS_DISPLAY=0 (so no GFX lib is needed).
+# Headless XIAO C5 build: keep C5 behavior while tagging XIAO-specific pin
+# defaults for optional Soldred GPS on UART1 (RX=GPIO12, TX=GPIO1).
 # Use compiler.cpp.extra_flags (empty by default) — NOT build.extra_flags,
 # which carries the board's USB-CDC defines. BOARD_HAS_PSRAM is intentionally
 # left unset: the headless scanner fits in internal SRAM, so the board's
 # 8 MB PSRAM is simply left uninitialised (not required by this firmware).
 arduino-cli compile \
   --fqbn "$FQBN" \
-  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_HAS_DISPLAY=0 -DCORE_DEBUG_LEVEL=3" \
+  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_BOARD_XIAO_C5=1 -DHUGINN_HAS_DISPLAY=0 -DHUGINN_HAS_GPS=1 -DGPS_UART_NUM=1 -DGPS_RX_PIN=12 -DGPS_TX_PIN=1 -DCORE_DEBUG_LEVEL=3" \
   --export-binaries \
   "$SKETCH_DIR"
 

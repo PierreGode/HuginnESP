@@ -39,8 +39,13 @@ Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6
 |---|---|---|
 | VCC | 3.3 V | Most breakouts are 3.3 V — check your module |
 | GND | GND | |
-| TX (GPS out) | GPIO 17 (default `GPS_RX_PIN`) | This is the data line into the ESP32 |
-| RX (GPS in) | GPIO 18 (default `GPS_TX_PIN`) | Leave unconnected if module is receive-only |
+| TX (GPS out) | GPIO 17 by default (Waveshare C5/S3/generic) | This is the data line into the ESP32 |
+| RX (GPS in) | GPIO 18 by default (Waveshare C5/S3/generic) | Leave unconnected if module is receive-only |
+
+For **Seeed XIAO ESP32-C5** builds produced by `scripts/build-xiao.sh`, Soldred GPS defaults are:
+- `GPS_RX_PIN=12`
+- `GPS_TX_PIN=1`
+- `GPS_UART_NUM=1`
 
 To use different pins, override in `platformio.ini`:
 
@@ -126,9 +131,11 @@ After the announce line, the stream is a mix of:
 
 - **Newline-delimited JSON** for raw scan results, one detection per line:
   ```json
-  {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2"}
-  {"type":"BLE","mac":"11:22:33:44:55:66","name":"AirPods","rssi":-71}
+    {"type":"WIFI","mac":"AA:BB:CC:DD:EE:FF","ssid":"MyNetwork","rssi":-62,"channel":6,"auth":"WPA2"}
+    {"type":"BLE","mac":"11:22:33:44:55:66","name":"AirPods","rssi":-71}
   ```
+    In GPS-enabled builds with a valid fix, both `WIFI` and `BLE` JSON lines also include:
+    `lat`, `lon`, `speed_kph`, and `speed_mps`.
   (`auth` is one of `Open`, `WEP`, `WPA`, `WPA2`, `WPA/WPA2`, `WPA2-Enterprise`, `WPA3`, `Unknown`.)
 - **Plaintext alert blocks** for high-signal events (Flipper Zero, AirTag, skimmer, pineapple/evil-twin), plus `[BOOT]` startup logs and `[CYCLE]` / `[WIFI]` progress logs.
 
@@ -150,7 +157,7 @@ The device also accepts commands on the same serial line (one per `\n`-terminate
 | `wardrive` | Tight WiFi+BLE alternation tuned for moving captures (see below) |
 | `stop` / `capture -stop` | Stop current scan, resume auto cycle |
 | `status` | Print a JSON status line |
-| `gps` | Print current GPS fix (`{"gps":"fix","lat":...,"lon":...,"speed_kph":...}` or `{"gps":"no_fix"}`); GPS-enabled builds only |
+| `gps` | Print current GPS fix (`{"gps":"fix","lat":...,"lon":...,"speed_kph":...,"speed_mps":...}` or `{"gps":"no_fix"}`); GPS-enabled builds only |
 
 #### Wardrive mode
 

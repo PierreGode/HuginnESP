@@ -47,10 +47,18 @@
 #define GPS_UART_NUM   1
 #endif
 #ifndef GPS_RX_PIN
+#if HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
+#define GPS_RX_PIN    12
+#else
 #define GPS_RX_PIN    17
 #endif
+#endif
 #ifndef GPS_TX_PIN
+#if HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
+#define GPS_TX_PIN     1
+#else
 #define GPS_TX_PIN    18
+#endif
 #endif
 #define GPS_BAUD       9600
 #define GPS_TASK_STACK 4096
