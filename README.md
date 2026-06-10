@@ -24,7 +24,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
-| **Skimmer Proximity LED** | Optional — onboard RGB LED blinks white when a potential skimmer is in range and blinks faster the closer it gets (RSSI-driven). Enabled on C5 builds |
+| **Proximity Alert LED** | Optional — onboard RGB LED blinks faster the closer a flagged device gets (RSSI-driven). Colors identify the alert: skimmer = red⇄white, Flipper Zero = blue⇄white. Enabled on C5 builds |
 | **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
 | **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
@@ -69,14 +69,22 @@ pio run -e esp32-gps
 
 ---
 
-## Skimmer proximity LED (C5)
+## Proximity alert LED (C5)
 
 Headless C5 builds (`esp32c5`, `esp32c5-gps`) drive the board's onboard
-addressable RGB LED as a "hotter/colder" skimmer locator. Whenever a potential
-skimmer (a suspicious BLE module — see [Skimmer Detection](#features)) is seen
-during a BLE scan, the LED blinks **white**, and the blink rate tracks signal
-strength: the closer you get (stronger RSSI), the faster it blinks. The LED
-turns itself off a few seconds after the skimmer drops out of range.
+addressable RGB LED (the WS2812B on `RGB_BUILTIN`) as a "hotter/colder" locator.
+Whenever a flagged device is seen during a BLE scan the LED blinks, and the
+blink rate tracks signal strength — the closer you get (stronger RSSI), the
+faster it blinks. The blink colors tell you *what* it found:
+
+| Alert | Blink colors |
+|---|---|
+| Potential skimmer (suspicious BLE module — see [Skimmer Detection](#features)) | **red ⇄ white** |
+| Flipper Zero | **blue ⇄ white** |
+
+It's a single LED, so if both are nearby at once the most recently seen device
+wins. The LED turns itself off a few seconds after the device drops out of
+range.
 
 This is enabled by default on the C5 environments via `-DHUGINN_HAS_SKIMMER_LED=1`.
 The pin defaults to the board's `RGB_BUILTIN`. Tunables (override in
@@ -85,7 +93,7 @@ The pin defaults to the board's `RGB_BUILTIN`. Tunables (override in
 | Flag | Default | Meaning |
 |---|---|---|
 | `SKIMMER_LED_PIN` | `RGB_BUILTIN` | GPIO driving the addressable LED |
-| `SKIMMER_LED_BRIGHTNESS` | `40` | White level (0–255) when lit |
+| `SKIMMER_LED_BRIGHTNESS` | `40` | Per-channel brightness (0–255) of the blink colors |
 | `SKIMMER_LED_RSSI_NEAR` | `-45` | RSSI at/above which it blinks fastest |
 | `SKIMMER_LED_RSSI_FAR` | `-95` | RSSI at/below which it blinks slowest |
 | `SKIMMER_LED_FAST_MS` / `SKIMMER_LED_SLOW_MS` | `70` / `1000` | Blink half-period at closest / farthest range |

@@ -121,6 +121,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         if (s_mode == BLE_MODE_FILTERED) {
             if (flipper) {
                 s_flipperCount++;
+                skimmer_led_notify(rssi, SKIMMER_LED_FLIPPER);   // blue<->white, rate by proximity
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";
@@ -147,7 +148,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         if (s_mode == BLE_MODE_SKIMMER) {
             if (skimmer) {
                 s_skimmerCount++;
-                skimmer_led_notify(rssi);   // pulse LED, rate by proximity
+                skimmer_led_notify(rssi, SKIMMER_LED_SKIMMER);   // red<->white, rate by proximity
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());
@@ -178,6 +179,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
 
             if (flipper) {
                 s_flipperCount++;
+                skimmer_led_notify(rssi, SKIMMER_LED_FLIPPER);   // blue<->white, rate by proximity
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";
@@ -197,7 +199,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
             }
             if (skimmer) {
                 s_skimmerCount++;
-                skimmer_led_notify(rssi);   // pulse LED, rate by proximity
+                skimmer_led_notify(rssi, SKIMMER_LED_SKIMMER);   // red<->white, rate by proximity
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());
