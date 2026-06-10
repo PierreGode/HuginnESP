@@ -100,7 +100,8 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
 #define SKIMMER_LED_RSSI_FAR   -95     // at/below this → slowest blink
 #define SKIMMER_LED_FAST_MS     70     // blink half-period at closest range
 #define SKIMMER_LED_SLOW_MS   1000     // blink half-period at farthest range
-#define SKIMMER_LED_HOLD_MS   4000     // keep blinking this long after the last sighting
+#define SKIMMER_LED_HOLD_MS  10000     // keep blinking this long after the last sighting
+                                       // (bridges the WiFi-only / wardrive gaps between BLE scans)
 #define SKIMMER_LED_TASK_STACK 2048
 #endif
 

@@ -117,11 +117,18 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
             xSemaphoreGive(s_sessionMutex);
         }
 
+        // Proximity alert LED — keep it lit while the device is seen, in ANY
+        // BLE mode. Detection runs regardless of mode; only the serial output
+        // below is mode-gated, so notifying here (not inside the mode blocks)
+        // means the LED doesn't go dark when the scan cycle rotates to a mode
+        // that wouldn't print this device. Skimmer takes priority over Flipper.
+        if (skimmer)      skimmer_led_notify(rssi, SKIMMER_LED_SKIMMER); // red<->white
+        else if (flipper) skimmer_led_notify(rssi, SKIMMER_LED_FLIPPER); // blue<->white
+
         // ---- Filtered mode: only output Flipper / AirTag ----
         if (s_mode == BLE_MODE_FILTERED) {
             if (flipper) {
                 s_flipperCount++;
-                skimmer_led_notify(rssi, SKIMMER_LED_FLIPPER);   // blue<->white, rate by proximity
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";
@@ -148,7 +155,6 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         if (s_mode == BLE_MODE_SKIMMER) {
             if (skimmer) {
                 s_skimmerCount++;
-                skimmer_led_notify(rssi, SKIMMER_LED_SKIMMER);   // red<->white, rate by proximity
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());
@@ -179,7 +185,6 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
 
             if (flipper) {
                 s_flipperCount++;
-                skimmer_led_notify(rssi, SKIMMER_LED_FLIPPER);   // blue<->white, rate by proximity
                 const char* colorStr = "White";
                 if (flipperColor == 1) colorStr = "Black";
                 else if (flipperColor == 2) colorStr = "Transparent";
@@ -199,7 +204,6 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
             }
             if (skimmer) {
                 s_skimmerCount++;
-                skimmer_led_notify(rssi, SKIMMER_LED_SKIMMER);   // red<->white, rate by proximity
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());

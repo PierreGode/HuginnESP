@@ -97,7 +97,7 @@ The pin defaults to the board's `RGB_BUILTIN`. Tunables (override in
 | `SKIMMER_LED_RSSI_NEAR` | `-45` | RSSI at/above which it blinks fastest |
 | `SKIMMER_LED_RSSI_FAR` | `-95` | RSSI at/below which it blinks slowest |
 | `SKIMMER_LED_FAST_MS` / `SKIMMER_LED_SLOW_MS` | `70` / `1000` | Blink half-period at closest / farthest range |
-| `SKIMMER_LED_HOLD_MS` | `4000` | How long to keep blinking after the last sighting |
+| `SKIMMER_LED_HOLD_MS` | `10000` | How long to keep blinking after the last sighting (bridges the WiFi-only gaps between BLE scans, e.g. in wardrive) |
 
 > RSSI is a coarse proximity proxy — readings jump around with orientation and
 > obstacles, so treat the blink rate as "warmer/colder," not a distance meter.
