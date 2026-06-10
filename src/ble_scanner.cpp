@@ -1,6 +1,7 @@
 #include "ble_scanner.h"
 #include "config.h"
 #include "runtime_config.h"
+#include "skimmer_led.h"
 #if HUGINN_HAS_GPS
 #include "gps_reader.h"
 #endif
@@ -146,6 +147,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         if (s_mode == BLE_MODE_SKIMMER) {
             if (skimmer) {
                 s_skimmerCount++;
+                skimmer_led_notify(rssi);   // pulse LED, rate by proximity
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());
@@ -195,6 +197,7 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
             }
             if (skimmer) {
                 s_skimmerCount++;
+                skimmer_led_notify(rssi);   // pulse LED, rate by proximity
                 Serial.println("POTENTIAL SKIMMER DETECTED!");
                 Serial.printf("Device Name: %s\n", name.c_str());
                 Serial.printf("MAC Address: %s\n", mac.c_str());

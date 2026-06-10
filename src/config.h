@@ -77,6 +77,32 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
     nullptr
 };
 
+// ----- Skimmer proximity LED (optional — enabled by -DHUGINN_HAS_SKIMMER_LED=1) -----
+// On boards with an addressable RGB "white" LED (e.g. the ESP32-C5 DevKitC
+// RGB_BUILTIN), the LED blinks while a potential skimmer is in range and blinks
+// faster the closer it is (stronger RSSI). Driven with the Arduino core's
+// rgbLedWrite(). Override the pin with -DSKIMMER_LED_PIN=<gpio> if your board
+// wires the LED elsewhere.
+#if HUGINN_HAS_SKIMMER_LED
+#ifndef SKIMMER_LED_PIN
+#ifdef RGB_BUILTIN
+#define SKIMMER_LED_PIN        RGB_BUILTIN
+#else
+#define SKIMMER_LED_PIN        LED_BUILTIN
+#endif
+#endif
+#ifndef SKIMMER_LED_BRIGHTNESS
+#define SKIMMER_LED_BRIGHTNESS 40      // 0-255 white level when lit (these LEDs are bright)
+#endif
+// RSSI is negative; closer ≈ nearer 0 (e.g. -45), farther ≈ more negative (-95).
+#define SKIMMER_LED_RSSI_NEAR  -45     // at/above this → fastest blink
+#define SKIMMER_LED_RSSI_FAR   -95     // at/below this → slowest blink
+#define SKIMMER_LED_FAST_MS     70     // blink half-period at closest range
+#define SKIMMER_LED_SLOW_MS   1000     // blink half-period at farthest range
+#define SKIMMER_LED_HOLD_MS   4000     // keep blinking this long after the last sighting
+#define SKIMMER_LED_TASK_STACK 2048
+#endif
+
 // ----- Flipper Zero BLE identification -----
 // Flipper Zero manufacturer data company ID (0x4C01 is the placeholder;
 // real identification uses service UUID + manufacturer data heuristics)
