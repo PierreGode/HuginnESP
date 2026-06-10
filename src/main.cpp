@@ -22,6 +22,7 @@
 #include "serial_cmd.h"
 #include "scan_cycle.h"
 #include "runtime_config.h"
+#include "skimmer_led.h"
 #if HUGINN_HAS_GPS
 #include "gps_reader.h"
 #endif
@@ -89,6 +90,9 @@ void setup() {
     Serial.println("[BOOT] Init BLE...");
     ble_scanner_init();
     Serial.println("[BOOT] BLE OK");
+
+    // Skimmer proximity LED (no-op unless -DHUGINN_HAS_SKIMMER_LED=1).
+    skimmer_led_init();
 
     serial_cmd_init();
     scan_cycle_init();
