@@ -77,10 +77,11 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
     nullptr
 };
 
-// ----- Skimmer proximity LED (optional — enabled by -DHUGINN_HAS_SKIMMER_LED=1) -----
-// On boards with an addressable RGB "white" LED (e.g. the ESP32-C5 DevKitC
-// RGB_BUILTIN), the LED blinks while a potential skimmer is in range and blinks
-// faster the closer it is (stronger RSSI). Driven with the Arduino core's
+// ----- Proximity alert LED (optional — enabled by -DHUGINN_HAS_SKIMMER_LED=1) -----
+// On boards with an addressable RGB LED (e.g. the ESP32-C5 WIFI6-KIT WS2812B on
+// RGB_BUILTIN), the LED blinks while a flagged device is in range and blinks
+// faster the closer it is (stronger RSSI). Blink colors identify the alert:
+// skimmer = red<->white, Flipper = blue<->white. Driven with the Arduino core's
 // rgbLedWrite(). Override the pin with -DSKIMMER_LED_PIN=<gpio> if your board
 // wires the LED elsewhere.
 #if HUGINN_HAS_SKIMMER_LED
