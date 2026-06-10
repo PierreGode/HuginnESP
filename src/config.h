@@ -105,6 +105,24 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
 #define SKIMMER_LED_TASK_STACK 2048
 #endif
 
+// ----- Mode button (optional — enabled by -DHUGINN_HAS_MODE_BUTTON=1) -----
+// A long-press on the onboard BOOT button toggles between wardrive and
+// skimmer-only scanning. The proximity LED confirms the switch (3 purple =
+// skimmer, 3 green = wardrive). Pin defaults to the board's BOOT button;
+// override with -DMODE_BTN_PIN=<gpio>. The button is active-low (INPUT_PULLUP).
+#if HUGINN_HAS_MODE_BUTTON
+#ifndef MODE_BTN_PIN
+#ifdef BOOT_PIN
+#define MODE_BTN_PIN           BOOT_PIN
+#else
+#define MODE_BTN_PIN           9        // common BOOT GPIO on ESP32-C devkits
+#endif
+#endif
+#define MODE_BTN_LONGPRESS_MS  1000     // hold this long to toggle mode
+#define MODE_BTN_POLL_MS         20     // debounce / sample interval
+#define MODE_BTN_TASK_STACK    2048
+#endif
+
 // ----- Flipper Zero BLE identification -----
 // Flipper Zero manufacturer data company ID (0x4C01 is the placeholder;
 // real identification uses service UUID + manufacturer data heuristics)

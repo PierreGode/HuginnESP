@@ -8,8 +8,15 @@
 #include "gps_reader.h"
 #endif
 
+// Boot default. With the mode button, the device comes up wardriving and the
+// button toggles to skimmer-only; without it, keep the original auto-cycle.
+#if HUGINN_HAS_MODE_BUTTON
+volatile ScanMode g_currentMode   = MODE_WARDRIVE;
+volatile bool     g_manualOverride = true;
+#else
 volatile ScanMode g_currentMode   = MODE_AUTO_CYCLE;
 volatile bool     g_manualOverride = false;
+#endif
 
 const char* scanModeName(ScanMode mode) {
     switch (mode) {

@@ -31,11 +31,17 @@ void skimmer_led_init();
 // track the most recent alert type.
 void skimmer_led_notify(int rssi, SkimmerLedAlert type);
 
+// Play a one-shot confirmation pattern: `count` blinks in the given color,
+// then resume normal proximity behavior. Used for mode-switch feedback
+// (e.g. 3 purple = skimmer mode, 3 green = wardrive mode).
+void skimmer_led_flash(uint8_t r, uint8_t g, uint8_t b, int count);
+
 #else
 
 // Compiled-out no-ops so callers don't need their own #if guards.
 static inline void skimmer_led_init() {}
 static inline void skimmer_led_notify(int, SkimmerLedAlert) {}
+static inline void skimmer_led_flash(uint8_t, uint8_t, uint8_t, int) {}
 
 #endif // HUGINN_HAS_SKIMMER_LED
 

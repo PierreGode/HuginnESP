@@ -123,6 +123,20 @@ void scan_cycle_task(void* param) {
             continue;
         }
 
+        // ── Skimmer-only mode ────────────────────────────────────────────
+        // First-class persistent branch (like wardrive) so the BLE skimmer
+        // scan keeps running continuously instead of being parked by the
+        // generic manual-override idle branch below.
+        if (g_manualOverride && g_currentMode == MODE_SKIMMER) {
+            if (activeBle != BLE_MODE_SKIMMER) {
+                wifi_scanner_stop();
+                ble_scanner_start(BLE_MODE_SKIMMER);
+                activeBle = BLE_MODE_SKIMMER;
+            }
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
         // ── Manual override (non-wardrive) or paused ─────────────────────
         if (g_manualOverride || !s_running) {
             if (activeBle != BLE_MODE_OFF) {
