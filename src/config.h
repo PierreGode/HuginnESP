@@ -7,7 +7,7 @@
 // ----- Firmware version -----
 // Bumped manually; emitted in the device announce line at boot. Should
 // match the version reported by the web flasher's manifest.json.
-#define HUGINN_FW_VERSION "1.0"
+#define HUGINN_FW_VERSION "2.0"
 
 // ----- Scan durations (ms) -----
 #define WIFI_SCAN_DURATION    8000
@@ -71,9 +71,14 @@
 // ----- Skimmer suspicious names (defaults; runtime list lives in runtime_config) -----
 static const char* SKIMMER_NAMES_DEFAULT[] = {
     "HC-05", "HC-06", "HC-08",
+    "HC05", "HC06", "HC08",
     "BT05", "BT06",
+    "CC41A", "CC41",
     "JDY-30", "JDY-31", "JDY-33",
+    "JDY30", "JDY31", "JDY33",
     "SPP-CA",
+    "LINVOR",
+    "MLT-BT05",
     nullptr
 };
 

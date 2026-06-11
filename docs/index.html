@@ -3,601 +3,339 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HuginnESP — Web Flasher</title>
+    <title>SkimGuard C5 - Web Flasher</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
     <style>
       :root {
-        color-scheme: dark;
-        --bone: #e8e2d4;
-        --bone-dim: #a89e8b;
-        --ash: #6b6358;
-        --ink: #0a0908;
-        --pitch: #15110d;
-        --bronze: #c8a35d;
-        --bronze-dim: #8a6f3a;
-        --blood: #8b2626;
-        --rune: #d9b878;
+        --bg: #f6f8f3;
+        --bg-soft: #eaf0de;
+        --ink: #152018;
+        --muted: #4f6252;
+        --accent: #f25f3a;
+        --accent-2: #0da3b1;
+        --panel: #ffffff;
+        --line: #d8e1d0;
       }
 
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
 
       body {
-        min-height: 100vh;
-        background: var(--ink);
-        color: var(--bone);
-        font-family: "Inter", system-ui, sans-serif;
-        font-weight: 300;
-        line-height: 1.6;
-        position: relative;
-        overflow-x: hidden;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-
-      /* atmospheric vignette */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(
-          ellipse at center top,
-          transparent 0%,
-          rgba(0, 0, 0, 0.55) 80%
-        );
-        pointer-events: none;
-        z-index: 1;
-      }
-
-      .page {
-        position: relative;
-        z-index: 2;
-        width: 100%;
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 0 1.25rem 4rem;
-      }
-
-      /* hero */
-      .hero {
-        position: relative;
-        margin: 2rem auto 2rem;
-        aspect-ratio: 16 / 9;
-        max-height: 360px;
-        overflow: hidden;
-        border-radius: 6px;
-        border-bottom: 1px solid rgba(200, 163, 93, 0.25);
-      }
-      .hero img {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center 30%;
-        filter: contrast(1.05) saturate(0.9);
-      }
-      .hero::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          to bottom,
-          rgba(10, 9, 8, 0) 40%,
-          rgba(10, 9, 8, 0.7) 80%,
-          var(--ink) 100%
-        );
-      }
-
-      /* title block */
-      .title {
-        text-align: center;
-        margin-bottom: 2.5rem;
-      }
-      .runes {
-        font-family: "Cinzel", serif;
-        font-size: 1.1rem;
-        letter-spacing: 0.6em;
-        color: var(--rune);
-        opacity: 0.55;
-        margin-bottom: 0.75rem;
-        user-select: none;
-      }
-      h1 {
-        font-family: "Cinzel", serif;
-        font-weight: 700;
-        font-size: clamp(2.2rem, 6vw, 3.2rem);
-        letter-spacing: 0.18em;
-        margin: 0 0 0.6rem;
-        color: var(--bone);
-        text-transform: uppercase;
-        text-shadow: 0 0 30px rgba(200, 163, 93, 0.15);
-      }
-      .kenning {
-        font-family: "Cinzel", serif;
-        font-style: italic;
-        font-weight: 500;
-        color: var(--bronze);
-        font-size: 0.95rem;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        margin: 0;
-      }
-      .verse {
-        margin-top: 1.25rem;
-        max-width: 38ch;
-        margin-left: auto;
-        margin-right: auto;
-        color: var(--bone-dim);
-        font-size: 0.98rem;
-      }
-
-      /* divider with rune */
-      .divider {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin: 2rem 0;
-        color: var(--bronze-dim);
-      }
-      .divider::before,
-      .divider::after {
-        content: "";
-        flex: 1;
-        height: 1px;
-        background: linear-gradient(
-          to right,
-          transparent,
-          rgba(200, 163, 93, 0.35),
-          transparent
-        );
-      }
-      .divider span {
-        font-family: "Cinzel", serif;
-        font-size: 1.5rem;
-        color: var(--rune);
-        opacity: 0.7;
-      }
-
-      /* ritual / install panel */
-      .ritual {
-        background: linear-gradient(
-          180deg,
-          rgba(21, 17, 13, 0.9) 0%,
-          rgba(10, 9, 8, 0.9) 100%
-        );
-        border: 1px solid rgba(200, 163, 93, 0.2);
-        border-radius: 4px;
-        padding: 2rem 1.5rem;
-        text-align: center;
-        position: relative;
-      }
-      .ritual::before,
-      .ritual::after {
-        content: "";
-        position: absolute;
-        width: 16px;
-        height: 16px;
-        border: 1px solid var(--bronze-dim);
-      }
-      .ritual::before {
-        top: -1px;
-        left: -1px;
-        border-right: none;
-        border-bottom: none;
-      }
-      .ritual::after {
-        bottom: -1px;
-        right: -1px;
-        border-left: none;
-        border-top: none;
-      }
-      .ritual h2 {
-        font-family: "Cinzel", serif;
-        font-weight: 600;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        font-size: 1rem;
-        color: var(--bronze);
-        margin: 0 0 0.5rem;
-      }
-      .ritual p {
-        margin: 0 0 1.5rem;
-        color: var(--bone-dim);
-        font-size: 0.95rem;
-      }
-
-      /* the bind button */
-      button.bind {
-        font-family: "Cinzel", serif;
-        font-weight: 600;
-        font-size: 0.95rem;
-        letter-spacing: 0.25em;
-        text-transform: uppercase;
+        font-family: "Space Grotesk", sans-serif;
         color: var(--ink);
-        background: linear-gradient(
-          180deg,
-          var(--rune) 0%,
-          var(--bronze) 50%,
-          var(--bronze-dim) 100%
-        );
-        border: 1px solid var(--bronze-dim);
-        padding: 0.95rem 2.2rem;
-        cursor: pointer;
-        border-radius: 2px;
-        transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
-        box-shadow:
-          0 0 0 1px rgba(0, 0, 0, 0.5) inset,
-          0 8px 24px rgba(200, 163, 93, 0.12);
-      }
-      button.bind:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.1);
-        box-shadow:
-          0 0 0 1px rgba(0, 0, 0, 0.5) inset,
-          0 10px 32px rgba(200, 163, 93, 0.25);
-      }
-      button.bind:active { transform: translateY(0); filter: brightness(0.95); }
-      button.warn {
-        font-family: "Cinzel", serif;
-        font-size: 0.85rem;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        color: var(--blood);
-        background: transparent;
-        border: 1px solid var(--blood);
-        padding: 0.75rem 1.5rem;
-        cursor: not-allowed;
+        background:
+          radial-gradient(circle at 10% 10%, rgba(13, 163, 177, 0.18), transparent 36%),
+          radial-gradient(circle at 92% 18%, rgba(242, 95, 58, 0.18), transparent 30%),
+          linear-gradient(135deg, var(--bg) 0%, #ffffff 50%, var(--bg-soft) 100%);
+        min-height: 100vh;
       }
 
-      /* skald (footer-ish meta) */
-      .skald {
-        margin-top: 2.5rem;
-        text-align: center;
-        font-size: 0.82rem;
-        color: var(--ash);
-        letter-spacing: 0.05em;
+      .wrap {
+        width: min(980px, 94vw);
+        margin: 0 auto;
+        padding: 28px 0 40px;
       }
-      .skald code {
-        font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
-        color: var(--bone-dim);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 0.1rem 0.4rem;
-        border-radius: 2px;
-        font-size: 0.78rem;
-      }
-      .skald a { color: var(--bronze); text-decoration: none; }
-      .skald a:hover { text-decoration: underline; }
-      .skald .row { margin: 0.35rem 0; }
 
-      .compat {
+      .hero {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 20px;
+        align-items: stretch;
+      }
+
+      .hero-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 28px;
+        box-shadow: 0 18px 44px rgba(20, 30, 22, 0.08);
+      }
+
+      .badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.55rem;
-        margin: 0 1.25rem 1.5rem 0;
-        padding: 0.45rem 0.95rem;
-        background: rgba(200, 163, 93, 0.06);
-        border: 1px solid rgba(200, 163, 93, 0.25);
+        gap: 8px;
+        padding: 7px 12px;
         border-radius: 999px;
-        font-size: 0.78rem;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 16px 0 8px;
+        font-family: "Sora", sans-serif;
+        font-size: clamp(34px, 6vw, 62px);
+        line-height: 0.95;
+        letter-spacing: -0.03em;
+      }
+
+      .accent { color: var(--accent); }
+
+      .lead {
+        margin: 12px 0 0;
+        color: var(--muted);
+        max-width: 58ch;
+        font-size: 16px;
+      }
+
+      .hero-art {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(160deg, rgba(13, 163, 177, 0.16), rgba(13, 163, 177, 0) 45%),
+          linear-gradient(320deg, rgba(242, 95, 58, 0.2), rgba(242, 95, 58, 0) 50%),
+          #111d14;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero-art::before {
+        content: "BLE";
+        position: absolute;
+        left: 20px;
+        top: 16px;
+        font-family: "Sora", sans-serif;
+        font-weight: 800;
+        color: #ffffff;
+        opacity: 0.9;
+      }
+
+      .hero-art::after {
+        content: "C5 ONLY";
+        position: absolute;
+        right: 20px;
+        bottom: 16px;
+        color: rgba(255, 255, 255, 0.8);
         letter-spacing: 0.08em;
-        color: var(--bone-dim);
-      }
-      .compat strong { color: var(--bronze); font-weight: 500; letter-spacing: 0.12em; }
-
-      .binders {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.85rem;
-        margin-bottom: 1rem;
+        font-size: 12px;
       }
 
-      .rite {
-        margin: 1.25rem auto 0;
-        color: var(--bone-dim);
-        font-size: 0.82rem;
-        line-height: 1.5;
+      .waves {
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-radial-gradient(circle at 18% 42%, transparent 0 10px, rgba(255,255,255,0.1) 10px 11px),
+          repeating-radial-gradient(circle at 73% 58%, transparent 0 14px, rgba(255,255,255,0.08) 14px 15px);
+        animation: pulse 3.8s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.75; }
+        50% { transform: scale(1.04); opacity: 1; }
+      }
+
+      .panel {
+        margin-top: 22px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 24px;
+        box-shadow: 0 18px 44px rgba(20, 30, 22, 0.08);
+      }
+
+      .panel h2 {
+        margin: 0 0 10px;
+        font-family: "Sora", sans-serif;
+        font-size: 22px;
+      }
+
+      .panel p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .targets {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      button.bind {
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--accent), #ff7b3e);
+        color: #fff;
+        font-family: "Sora", sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: transform 0.14s ease, box-shadow 0.2s ease;
+        box-shadow: 0 10px 18px rgba(242, 95, 58, 0.22);
+      }
+
+      button.bind:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(242, 95, 58, 0.3);
+      }
+
+      button.bind-ghost {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Sora", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 11px 14px;
+        cursor: pointer;
+      }
+
+      .note {
+        margin-top: 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .foot {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .flash-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        background: rgba(10, 16, 12, 0.62);
+        backdrop-filter: blur(3px);
+      }
+
+      .flash-overlay[hidden] { display: none; }
+
+      .flash-dialog {
+        width: min(620px, 94vw);
+        border-radius: 18px;
+        border: 1px solid #2d3f31;
+        background: #0f1912;
+        color: #e8f1e7;
+        padding: 22px;
+      }
+
+      .flash-dialog h3 {
+        margin: 0 0 10px;
+        font-family: "Sora", sans-serif;
         letter-spacing: 0.02em;
-        text-align: center;
-      }
-      .rite strong { color: var(--bronze); font-weight: 500; }
-      .rite code {
-        font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
-        color: var(--rune);
-        background: rgba(200, 163, 93, 0.08);
-        padding: 0.05rem 0.4rem;
-        border-radius: 2px;
-        font-size: 0.78rem;
-        letter-spacing: 0.05em;
       }
 
-      .compat-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--bronze);
-        box-shadow: 0 0 8px var(--bronze);
+      .flash-progress-track {
+        height: 9px;
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid #38533e;
+        background: #1a2a1f;
+      }
+
+      .flash-progress-fill {
+        width: 0;
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-2), var(--accent));
+      }
+
+      .flash-pct { margin: 8px 0 2px; color: #9ec9b1; font-size: 13px; min-height: 18px; }
+      .flash-status { margin: 0 0 10px; color: #c8dec9; }
+
+      .flash-log {
+        margin: 0 0 12px;
+        max-height: 220px;
+        overflow-y: auto;
+        border-radius: 12px;
+        border: 1px solid #39523f;
+        background: #09110c;
+        padding: 12px;
+        color: #b8d2bb;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .flash-confirm-row {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 10px;
       }
 
       .browser-warn {
         display: none;
-        margin-top: 1.25rem;
-        padding: 0.75rem 1rem;
-        background: rgba(139, 38, 38, 0.1);
-        border: 1px solid rgba(139, 38, 38, 0.4);
-        color: #d9a3a3;
-        font-size: 0.85rem;
-        text-align: center;
+        margin-top: 12px;
+        border-radius: 10px;
+        border: 1px solid #f8b7a7;
+        background: #fff3ef;
+        color: #8a3b28;
+        padding: 10px 12px;
+        font-size: 13px;
       }
 
-      @media (max-width: 480px) {
-        .hero { aspect-ratio: 4 / 3; }
-        h1 { letter-spacing: 0.12em; }
-        .ritual { padding: 1.5rem 1rem; }
+      @media (max-width: 760px) {
+        .hero { grid-template-columns: 1fr; }
+        .targets { grid-template-columns: 1fr; }
       }
-
-      /* secondary / ghost button (serial monitor, cancel, etc.) */
-      button.bind-ghost {
-        font-family: "Cinzel", serif;
-        font-weight: 600;
-        font-size: 0.9rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--bronze);
-        background: transparent;
-        border: 1px solid var(--bronze-dim);
-        padding: 0.85rem 1.8rem;
-        cursor: pointer;
-        border-radius: 2px;
-        transition: transform 0.15s ease, color 0.2s ease, border-color 0.2s ease;
-      }
-      button.bind-ghost:hover {
-        color: var(--rune);
-        border-color: var(--bronze);
-        transform: translateY(-1px);
-      }
-      button.sm { padding: 0.55rem 1.1rem; font-size: 0.78rem; letter-spacing: 0.12em; }
-
-      /* flash / serial overlay */
-      .flash-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 50;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.25rem;
-        background: rgba(5, 4, 3, 0.82);
-        backdrop-filter: blur(3px);
-      }
-      .flash-overlay[hidden] { display: none; }
-      .flash-dialog {
-        position: relative;
-        width: 100%;
-        max-width: 540px;
-        background: linear-gradient(180deg, rgba(21, 17, 13, 0.98) 0%, rgba(10, 9, 8, 0.98) 100%);
-        border: 1px solid rgba(200, 163, 93, 0.3);
-        border-radius: 4px;
-        padding: 1.75rem 1.5rem;
-        text-align: center;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-      }
-      .flash-dialog h3 {
-        font-family: "Cinzel", serif;
-        font-weight: 600;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        font-size: 1rem;
-        color: var(--bronze);
-        margin: 0 0 1.25rem;
-      }
-      .flash-progress-track {
-        height: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(200, 163, 93, 0.2);
-        border-radius: 999px;
-        overflow: hidden;
-      }
-      .flash-progress-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, var(--bronze-dim), var(--rune));
-        transition: width 0.2s ease;
-      }
-      .flash-pct {
-        margin: 0.5rem 0 0;
-        font-family: "Cinzel", serif;
-        color: var(--rune);
-        font-size: 0.85rem;
-        letter-spacing: 0.1em;
-        min-height: 1rem;
-      }
-      .flash-status {
-        margin: 0.35rem 0 1rem;
-        color: var(--bone-dim);
-        font-size: 0.9rem;
-      }
-      .flash-log {
-        text-align: left;
-        font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
-        font-size: 0.74rem;
-        line-height: 1.5;
-        color: var(--bone-dim);
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(200, 163, 93, 0.15);
-        border-radius: 3px;
-        padding: 0.75rem 0.9rem;
-        max-height: 240px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-        margin: 0 0 1rem;
-      }
-      .flash-confirm-row {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: center;
-        margin-bottom: 1rem;
-      }
-      .serial-baud {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        color: var(--bone-dim);
-        font-size: 0.85rem;
-      }
-      .serial-baud select {
-        background: var(--pitch);
-        color: var(--bone);
-        border: 1px solid var(--bronze-dim);
-        border-radius: 2px;
-        padding: 0.35rem 0.5rem;
-        font-family: inherit;
-      }
-      .serial-log-area { max-height: 320px; }
-      .serial-input-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-      }
-      .serial-input-row input {
-        flex: 1;
-        background: var(--pitch);
-        color: var(--bone);
-        border: 1px solid var(--bronze-dim);
-        border-radius: 2px;
-        padding: 0.5rem 0.7rem;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
-      }
-      .serial-actions { display: flex; gap: 0.75rem; justify-content: center; }
     </style>
   </head>
   <body>
-    <div class="page">
-      <div class="hero">
-        <img src="img/huginn.png" alt="Huginn — the raven of thought" />
-      </div>
-
-      <header class="title">
-        <div class="runes" aria-hidden="true">ᚺᚢᚷᛁᚾᚾ</div>
-        <h1>HuginnESP</h1>
-        <p class="kenning">Raven of Thought · Bound in Silicon</p>
-        <p class="verse">
-          Two ravens fly each dawn from Odin's shoulder &mdash;
-          <em>Huginn</em>, thought, and <em>Muninn</em>, memory.
-          Bind one now to your vessel.
-        </p>
-        <p class="verse" style="font-size: 0.85rem; margin-top: 0.5rem;">
-          WiFi &amp; BLE wardriving &middot; Flipper&nbsp;Zero / AirTag / Skimmer detection
-        </p>
-      </header>
-
-      <div class="divider" aria-hidden="true">
-        <span>ᛟ</span>
-      </div>
-
-      <section class="ritual">
-        <h2>The Binding</h2>
-        <p>
-          Tether your ESP32 by USB. Bid the raven enter, and the right gate
-          shall open of its own accord.
-        </p>
-
-        <div class="compat" role="note">
-          <span class="compat-dot" aria-hidden="true"></span>
-          Choose the vessel kindred to your hand
-        </div>
-
-        <div class="binders">
-          <button class="bind" onclick="flashDevice('manifest-esp32s3.json')">Bind &mdash; Waveshare S3</button>
-          <button class="bind" onclick="flashDevice('manifest-esp32c5.json')">Bind &mdash; Waveshare C5</button>
-          <button class="bind" onclick="flashDevice('manifest-xiao-esp32c5.json')">Bind &mdash; Seeed XIAO C5</button>
-        </div>
-
-        <div class="binders">
-          <button class="bind-ghost" onclick="openLogs()">Hearken &mdash; Serial Monitor</button>
-        </div>
-
-        <p class="rite">
-          <strong>If the binding falters,</strong> hold the <code>BOOT</code> rune,
-          tap <code>RESET</code>, release <code>BOOT</code> &mdash; then bid the raven enter.
-          The C5 vessel must oft be coaxed by hand into the download trance.
-        </p>
-
-
-
-        <div id="browserWarn" class="browser-warn">
-          Web Serial is only spoken by Chromium-born browsers (Chrome, Edge, Opera) on desktop.
-        </div>
+    <main class="wrap">
+      <section class="hero">
+        <article class="hero-card">
+          <div class="badge">Skim Detector Firmware</div>
+          <h1>SkimGuard <span class="accent">C5</span></h1>
+          <p class="lead">
+            Continuous BLE skimmer detection for ESP32-C5 boards. No wardriving mode,
+            no serial protocol stream, just always-on skimmer hunting.
+          </p>
+        </article>
+        <aside class="hero-art" aria-hidden="true">
+          <div class="waves"></div>
+        </aside>
       </section>
 
-      <footer class="skald">
-        <div class="row">
-          Vessels:
-          <code>Waveshare ESP32-S3-Touch-LCD-4B</code>
-          &middot;
-          <code>Waveshare ESP32-C5-WIFI6-KIT</code>
-          &middot;
-          <code>Seeed XIAO ESP32-C5</code>
-        </div>
-        <div class="row">
-          Forge mark: <code id="build">&mdash;</code>
-        </div>
-        <div class="row" style="margin-top: 1rem;">
-          <a href="https://github.com/PierreGode/HuginnESP">github.com/PierreGode/HuginnESP</a>
-        </div>
-      </footer>
-    </div>
+      <section class="panel">
+        <h2>Flash Your Board</h2>
+        <p>Select your exact hardware profile. The installer validates the connected chip before writing.</p>
 
-    <!-- Flash overlay -->
+        <div class="targets">
+          <button class="bind" onclick="flashDevice('manifest-esp32c5.json')">Flash ESP32-C5 Dev Board</button>
+          <button class="bind" onclick="flashDevice('manifest-xiao-esp32c5.json')">Flash Seeed XIAO ESP32-C5</button>
+        </div>
+
+        <p class="note">
+          If flashing fails, hold BOOT, tap RESET, release BOOT, then retry.
+        </p>
+
+        <div id="browserWarn" class="browser-warn">
+          Web Serial is only available in desktop Chrome, Edge, or Opera.
+        </div>
+
+        <div class="foot">
+          Build: <strong id="build">-</strong>
+        </div>
+      </section>
+    </main>
+
     <div id="flash-overlay" class="flash-overlay" hidden>
       <div class="flash-dialog">
-        <h3>ᚺ The Binding ᚺ</h3>
+        <h3>Install SkimGuard C5</h3>
         <div class="flash-progress-track">
           <div id="flash-bar" class="flash-progress-fill"></div>
         </div>
         <p id="flash-pct" class="flash-pct"></p>
-        <p id="flash-status" class="flash-status">Initializing&hellip;</p>
+        <p id="flash-status" class="flash-status">Preparing...</p>
         <pre id="flash-log" class="flash-log"></pre>
         <div id="flash-confirm-row" class="flash-confirm-row" hidden>
-          <button id="flash-confirm-yes" class="bind">Bind Now</button>
-          <button id="flash-confirm-no" class="bind-ghost sm">Cancel</button>
+          <button id="flash-confirm-yes" class="bind">Flash Now</button>
+          <button id="flash-confirm-no" class="bind-ghost">Cancel</button>
         </div>
         <button id="flash-close" class="bind" hidden>Close</button>
-      </div>
-    </div>
-
-    <!-- Serial monitor overlay -->
-    <div id="serial-overlay" class="flash-overlay" hidden>
-      <div class="flash-dialog">
-        <h3>ᚱ Serial Monitor ᚱ</h3>
-        <div class="serial-baud">
-          <label for="serial-baud-select">Baud:</label>
-          <select id="serial-baud-select">
-            <option value="115200">115200</option>
-            <option value="230400">230400</option>
-            <option value="460800" selected>460800</option>
-            <option value="921600">921600</option>
-          </select>
-        </div>
-        <pre id="serial-log" class="flash-log serial-log-area"></pre>
-        <div class="serial-input-row">
-          <input id="serial-input" type="text" placeholder="Send command (e.g. status)…" autocomplete="off" />
-          <button id="serial-send" class="bind sm">Send</button>
-        </div>
-        <div class="serial-actions">
-          <button id="serial-clear" class="bind-ghost sm">Clear</button>
-          <button id="serial-close" class="bind-ghost sm">Disconnect</button>
-        </div>
       </div>
     </div>
 

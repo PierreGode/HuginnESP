@@ -1,4 +1,4 @@
-name: Build firmware and deploy web flasher
+name: Build SkimGuard C5 and deploy flasher
 
 on:
   push:
@@ -39,16 +39,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install platformio esptool
 
-      - name: Build firmware (ESP32-S3)
-        run: pio run -e esp32s3box
+      - name: Build firmware (ESP32-C5 Dev)
+        run: pio run -e esp32c5-dev
 
-      - name: Build firmware (ESP32-C5)
-        run: pio run -e esp32c5
-
-      # ── Seeed XIAO ESP32-C5 — separate arduino-cli pipeline ──
-      # The XIAO_ESP32C5 board definition only exists in the official
-      # Espressif esp32 core, so this target is built with arduino-cli
-      # rather than PlatformIO/pioarduino.
       - name: Install arduino-cli
         run: |
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
@@ -75,23 +68,9 @@ jobs:
             echo "boot_app0.bin not found"; exit 1
           fi
 
-          # ---- ESP32-S3 merged image ----
-          S3_DIR=.pio/build/esp32s3box
-          python -m esptool --chip esp32s3 merge_bin \
-            --output site/firmware/huginn-esp32s3.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            0x0000   "$S3_DIR/bootloader.bin" \
-            0x8000   "$S3_DIR/partitions.bin" \
-            0xe000   "$BOOT_APP0" \
-            0x10000  "$S3_DIR/firmware.bin"
-
-          # ---- ESP32-C5 merged image ----
-          # ESP32-C5 second-stage bootloader lives at flash 0x2000 (not 0x0
-          # like S3/C6). --target-offset 0x0 pads the merged file from 0 so
-          # the manifest can still flash it at offset 0.
-          C5_DIR=.pio/build/esp32c5
+          C5_DIR=.pio/build/esp32c5-dev
           python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-esp32c5.bin \
+            --output site/firmware/skimguard-c5-dev.bin \
             --flash_mode dio --flash_freq 80m --flash_size 16MB \
             --target-offset 0x0 \
             0x2000   "$C5_DIR/bootloader.bin" \
@@ -99,27 +78,24 @@ jobs:
             0xe000   "$BOOT_APP0" \
             0x10000  "$C5_DIR/firmware.bin"
 
-          # ---- Seeed XIAO ESP32-C5 merged image (arduino-cli build) ----
-          # 8 MB flash; C5 bootloader at 0x2000 like the Waveshare C5 above.
-          # boot_app0.bin comes from the arduino15 esp32 core package.
-          XIAO_DIR=build-sketch/HuginnESP/build/esp32.esp32.XIAO_ESP32C5
+          XIAO_DIR=build-sketch/SkimGuardC5/build/esp32.esp32.XIAO_ESP32C5
           BOOT_APP0_ARD=$(find ~/.arduino15/packages/esp32 -name boot_app0.bin | head -n 1)
           if [ -z "$BOOT_APP0_ARD" ]; then
             echo "arduino15 boot_app0.bin not found"; exit 1
           fi
           python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-xiao-esp32c5.bin \
+            --output site/firmware/skimguard-c5-xiao.bin \
             --flash_mode dio --flash_freq 80m --flash_size 8MB \
             --target-offset 0x0 \
-            0x2000   "$XIAO_DIR/HuginnESP.ino.bootloader.bin" \
-            0x8000   "$XIAO_DIR/HuginnESP.ino.partitions.bin" \
+            0x2000   "$XIAO_DIR/SkimGuardC5.ino.bootloader.bin" \
+            0x8000   "$XIAO_DIR/SkimGuardC5.ino.partitions.bin" \
             0xe000   "$BOOT_APP0_ARD" \
-            0x10000  "$XIAO_DIR/HuginnESP.ino.bin"
+            0x10000  "$XIAO_DIR/SkimGuardC5.ino.bin"
 
           VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
           echo "Version: $VERSION"
 
-          for m in manifest-esp32s3.json manifest-esp32c5.json manifest-xiao-esp32c5.json; do
+          for m in manifest-esp32c5.json manifest-xiao-esp32c5.json manifest.json; do
             jq --arg v "$VERSION" '.version = $v' "site/$m" > "site/$m.tmp"
             mv "site/$m.tmp" "site/$m"
           done

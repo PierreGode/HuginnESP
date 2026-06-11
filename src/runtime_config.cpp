@@ -11,6 +11,17 @@ volatile uint32_t g_pineappleEveryN    = PINEAPPLE_EVERY_N_DEFAULT;
 static SemaphoreHandle_t  s_skimmerMutex = nullptr;
 static std::vector<String> s_skimmerNames;
 
+static String normalizeName(const String& in) {
+    String out;
+    out.reserve(in.length());
+    for (size_t i = 0; i < in.length(); i++) {
+        char c = in[i];
+        if (c == ' ' || c == '-' || c == '_' || c == '.') continue;
+        out += (char)toupper((unsigned char)c);
+    }
+    return out;
+}
+
 static void seedDefaultSkimmerNames() {
     for (int i = 0; SKIMMER_NAMES_DEFAULT[i] != nullptr; i++) {
         s_skimmerNames.emplace_back(SKIMMER_NAMES_DEFAULT[i]);
@@ -25,10 +36,16 @@ void runtime_config_init() {
 
 bool isSkimmerName(const String& name) {
     if (!s_skimmerMutex || name.length() == 0) return false;
+    const String nrm = normalizeName(name);
     bool found = false;
     if (xSemaphoreTake(s_skimmerMutex, portMAX_DELAY) == pdTRUE) {
-        for (const auto& n : s_skimmerNames) {
-            if (name.equalsIgnoreCase(n.c_str())) { found = true; break; }
+        for (const auto& configured : s_skimmerNames) {
+            const String cn = normalizeName(configured);
+            if (cn.length() == 0) continue;
+            if (nrm == cn || nrm.startsWith(cn) || nrm.indexOf(cn) >= 0) {
+                found = true;
+                break;
+            }
         }
         xSemaphoreGive(s_skimmerMutex);
     }

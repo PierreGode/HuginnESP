@@ -1,13 +1,13 @@
 {
-  "name": "HuginnESP (Seeed XIAO ESP32-C5)",
-  "version": "1.0",
-  "home_assistant_domain": "huginnesp",
+  "name": "SkimGuard C5 (Seeed XIAO ESP32-C5)",
+  "version": "2.0",
+  "home_assistant_domain": "skimguardc5",
   "new_install_prompt_erase": true,
   "builds": [
     {
       "chipFamily": "ESP32-C5",
       "parts": [
-        { "path": "firmware/huginn-xiao-esp32c5.bin", "offset": 0 }
+        { "path": "firmware/skimguard-c5-xiao.bin", "offset": 0 }
       ]
     }
   ]
