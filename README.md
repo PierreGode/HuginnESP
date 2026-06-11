@@ -25,6 +25,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
 | **Proximity Alert LED** | Optional — onboard RGB LED blinks faster the closer a flagged device gets (RSSI-driven). Colors identify the alert: skimmer = red⇄white, Flipper Zero = blue⇄white. Enabled on C5 builds |
+| **Mode Button** | Optional — long-press the onboard BOOT button to toggle wardrive ⇄ skimmer-only scanning. LED confirms: 3 purple blinks = skimmer, 3 green = wardrive. C5 builds boot into wardrive |
 | **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
 | **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
@@ -97,7 +98,7 @@ The pin defaults to the board's `RGB_BUILTIN`. Tunables (override in
 | `SKIMMER_LED_RSSI_NEAR` | `-45` | RSSI at/above which it blinks fastest |
 | `SKIMMER_LED_RSSI_FAR` | `-95` | RSSI at/below which it blinks slowest |
 | `SKIMMER_LED_FAST_MS` / `SKIMMER_LED_SLOW_MS` | `70` / `1000` | Blink half-period at closest / farthest range |
-| `SKIMMER_LED_HOLD_MS` | `4000` | How long to keep blinking after the last sighting |
+| `SKIMMER_LED_HOLD_MS` | `10000` | How long to keep blinking after the last sighting (bridges the WiFi-only gaps between BLE scans, e.g. in wardrive) |
 
 > RSSI is a coarse proximity proxy — readings jump around with orientation and
 > obstacles, so treat the blink rate as "warmer/colder," not a distance meter.
@@ -105,6 +106,36 @@ The pin defaults to the board's `RGB_BUILTIN`. Tunables (override in
 To enable it on another board with an addressable LED, add
 `-DHUGINN_HAS_SKIMMER_LED=1` (and `-DSKIMMER_LED_PIN=<gpio>` if needed) to that
 environment's `build_flags`.
+
+---
+
+## Mode button (C5)
+
+On C5 builds the onboard **BOOT** button toggles the scan mode with a
+**long-press** (~1 s) — no host or serial command needed:
+
+- The device **boots into wardrive** mode.
+- **Long-press** → switches to **skimmer-only** scanning; the LED confirms with
+  **3 purple blinks**.
+- **Long-press again** → switches back to **wardrive**; the LED confirms with
+  **3 green blinks**.
+
+Skimmer-only mode runs the BLE skimmer scan continuously (WiFi off) so the
+proximity LED stays responsive; wardrive is the normal WiFi + BLE wardriving
+cycle. The serial commands (`wardrive`, `capture -skimmer`, `stop`, …) still
+work and stay in sync with the button.
+
+Enabled by default on the C5 environments via `-DHUGINN_HAS_MODE_BUTTON=1`.
+Tunables (override in `platformio.ini` `build_flags`):
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `MODE_BTN_PIN` | `BOOT_PIN` | GPIO of the toggle button (active-low, internal pull-up) |
+| `MODE_BTN_LONGPRESS_MS` | `1000` | How long to hold before the mode toggles |
+
+> The BOOT button is also a boot strapping pin — holding it **while resetting**
+> puts the chip into download mode. That only matters at reset; pressing it
+> during normal operation just toggles the scan mode.
 
 ---
 

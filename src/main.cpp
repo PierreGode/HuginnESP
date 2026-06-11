@@ -23,6 +23,7 @@
 #include "scan_cycle.h"
 #include "runtime_config.h"
 #include "skimmer_led.h"
+#include "button.h"
 #if HUGINN_HAS_GPS
 #include "gps_reader.h"
 #endif
@@ -93,6 +94,9 @@ void setup() {
 
     // Skimmer proximity LED (no-op unless -DHUGINN_HAS_SKIMMER_LED=1).
     skimmer_led_init();
+
+    // Mode button (no-op unless -DHUGINN_HAS_MODE_BUTTON=1).
+    button_init();
 
     serial_cmd_init();
     scan_cycle_init();

@@ -12,6 +12,11 @@ static volatile uint32_t s_lastSeenMs = 0;
 static volatile int32_t  s_lastType   = SKIMMER_LED_SKIMMER;
 static bool s_started = false;
 
+// One-shot confirmation flash request (mode-switch feedback). The button task
+// writes these; the LED task plays and clears the pending count.
+static volatile uint8_t  s_flashR = 0, s_flashG = 0, s_flashB = 0;
+static volatile int32_t  s_flashPending = 0;
+
 // Map an RSSI to a blink half-period (ms): closer (stronger signal, i.e. RSSI
 // nearer 0) blinks faster. RSSI is clamped to the configured NEAR..FAR window,
 // then linearly interpolated across FAST..SLOW.
@@ -49,6 +54,21 @@ static void skimmer_led_task(void*) {
     ledOff();
 
     for (;;) {
+        // Pending confirmation flash takes priority and plays synchronously.
+        if (s_flashPending > 0) {
+            const int     n = s_flashPending;
+            const uint8_t r = s_flashR, g = s_flashG, b = s_flashB;
+            s_flashPending = 0;
+            for (int i = 0; i < n; i++) {
+                rgbLedWrite(SKIMMER_LED_PIN, r, g, b);
+                vTaskDelay(pdMS_TO_TICKS(150));
+                rgbLedWrite(SKIMMER_LED_PIN, 0, 0, 0);
+                vTaskDelay(pdMS_TO_TICKS(150));
+            }
+            whitePhase = false;
+            continue;
+        }
+
         const uint32_t now = millis();
         const uint32_t age = now - (uint32_t)s_lastSeenMs;
 
@@ -80,6 +100,13 @@ void skimmer_led_notify(int rssi, SkimmerLedAlert type) {
     s_lastRssi   = rssi;
     s_lastType   = (int32_t)type;
     s_lastSeenMs = millis();
+}
+
+void skimmer_led_flash(uint8_t r, uint8_t g, uint8_t b, int count) {
+    s_flashR = r;
+    s_flashG = g;
+    s_flashB = b;
+    s_flashPending = count;
 }
 
 #endif // HUGINN_HAS_SKIMMER_LED
