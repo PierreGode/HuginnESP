@@ -34,15 +34,14 @@ static inline void ledOff() {
     rgbLedWrite(SKIMMER_LED_PIN, 0, 0, 0);
 }
 
-// Show one phase of the alternating blink. Phase 0 is the type's signature
-// color (red for skimmer, blue for Flipper); phase 1 is white for both.
+// Show one phase of the alternating blink. Phase 0 is red for skimmer,
+// phase 1 is white.
 static void ledPhase(bool whitePhase, int type) {
+    (void)type;
     const uint8_t b = SKIMMER_LED_BRIGHTNESS;
     uint8_t r, g, bl;
     if (whitePhase) {
         r = g = bl = b;                                   // white
-    } else if (type == SKIMMER_LED_FLIPPER) {
-        r = 0; g = 0; bl = b;                             // blue
     } else {
         r = b; g = 0; bl = 0;                             // red (skimmer)
     }

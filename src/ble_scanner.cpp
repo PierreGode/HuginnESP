@@ -82,14 +82,6 @@ int ble_scanner_count() {
     return s_bleCount;
 }
 
-int ble_scanner_flipper_count() {
-    return 0;
-}
-
-int ble_scanner_airtag_count() {
-    return 0;
-}
-
 int ble_scanner_skimmer_count() {
     return s_skimmerCount;
 }
@@ -105,6 +97,4 @@ static int sessionSetSize(const std::set<String>& s) {
 }
 
 int ble_scanner_session_count()         { return sessionSetSize(s_sessionBleMacs); }
-int ble_scanner_session_flipper_count() { return 0; }
-int ble_scanner_session_airtag_count()  { return 0; }
 int ble_scanner_session_skimmer_count() { return sessionSetSize(s_sessionSkimmerMacs); }

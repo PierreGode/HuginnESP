@@ -37,6 +37,7 @@ SKETCH_DIR="build-sketch/SkimGuardC5"
 # default and gives ample room for Bluedroid BLE + WiFi (firmware is ~1.4 MB).
 PARTITION="${XIAO_PARTITION:-default_8MB}"
 FQBN="esp32:esp32:XIAO_ESP32C5:PartitionScheme=${PARTITION}"
+ARDUINO_CLI_BIN="${ARDUINO_CLI:-arduino-cli}"
 
 echo "==> Assembling Arduino sketch at $SKETCH_DIR from src/"
 rm -rf "$SKETCH_DIR"
@@ -55,7 +56,7 @@ echo "==> Compiling for $FQBN"
 # Use compiler.cpp.extra_flags (empty by default) — NOT build.extra_flags,
 # which carries the board's USB-CDC defines. BOARD_HAS_PSRAM is intentionally
 # left unset: this firmware fits in internal SRAM without PSRAM requirements.
-arduino-cli compile \
+"$ARDUINO_CLI_BIN" compile \
   --fqbn "$FQBN" \
   --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_BOARD_XIAO_C5=1 -DHUGINN_HAS_DISPLAY=0 -DHUGINN_HAS_GPS=0 -DHUGINN_HAS_SKIMMER_LED=1 -DHUGINN_HAS_MODE_BUTTON=0 -DCORE_DEBUG_LEVEL=0" \
   --export-binaries \
