@@ -107,6 +107,10 @@ void scan_cycle_task(void* param) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;
             }
+            // Reclaim the shared 2.4 GHz radio before scanning. On the C5 the
+            // BLE and 802.15.4 phases leave the WiFi PHY in a state where the
+            // scan completes but receives nothing, so re-init WiFi each cycle.
+            wifi_scanner_reset_radio();
             // De-dup within a single sweep (the channel list revisits 1/6/11 and
             // the 5 GHz channels, so an AP would otherwise be emitted 2-3× per
             // cycle), but reset it every cycle so each AP is re-emitted once per
