@@ -22,7 +22,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 | **BLE Scan** | Scan BLE devices (MAC, name, RSSI) — Flipper / AirTag / skimmer classification is emitted as separate alert lines |
 | **Zigbee / 802.15.4 Scan** | **ESP32-C5 only.** Promiscuous IEEE 802.15.4 sniff across Zigbee channels 11–26; every frame with a source address is emitted as a `ZIGBEE` JSON line (PAN ID, EUI-64 / short address, channel, RSSI, LQI). Runs automatically as a phase of wardrive, or on demand via the `zigbee` command. Not available on the S3 / classic ESP32 (no 802.15.4 radio) |
 | **Flipper Zero Detection** | Identify Flipper Zero devices via BLE advertisement data |
-| **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
+| **AirTag / Find My Detection** | Flag Apple Find My trackers via BLE manufacturer data. Matches only the full offline-finding "separated" beacon (Apple company `0x004C`, type `0x12`, length `0x19`) — the high-confidence standalone-tracker signal — so it does **not** fire on the ambient Find My chatter every nearby iPhone/Mac/AirPods relays. Each unique tracker MAC alerts once (AirTag MACs rotate ~15 min, so a tag reappears under a fresh anonymous identity) |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
 | **Skimmer Detection** | Identify potential skimmer devices (HC-05/HC-06 BLE modules) |
 | **Proximity Alert LED** | Optional — onboard RGB LED blinks faster the closer a flagged device gets (RSSI-driven). Colors identify the alert: skimmer = red⇄white, Flipper Zero = blue⇄white. Enabled on C5 builds |
