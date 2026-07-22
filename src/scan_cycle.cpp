@@ -1,6 +1,7 @@
 #include "scan_cycle.h"
 #include "wifi_scanner.h"
 #include "ble_scanner.h"
+#include "zigbee_scanner.h"
 #include "serial_cmd.h"
 #include "config.h"
 #include "runtime_config.h"
@@ -40,6 +41,31 @@ static const size_t kWardriveChannelsLen =
 void scan_cycle_init() {
     s_running = true;
 }
+
+#if HUGINN_HAS_ZIGBEE
+// Sniff 802.15.4 for up to `durationMs`, hopping across the Zigbee channels.
+// The caller must have already parked WiFi and BLE so the shared 2.4 GHz radio
+// is free. Bails early if the operator leaves `wantMode`.
+static void zigbee_sniff_phase(uint32_t durationMs, ScanMode wantMode) {
+    zigbee_scanner_start();
+    uint8_t ch = ZIGBEE_CHANNEL_MIN;
+    zigbee_scanner_set_channel(ch);
+    uint32_t phaseStart = millis();
+    uint32_t chStart    = millis();
+    while (g_manualOverride && g_currentMode == wantMode
+           && (millis() - phaseStart) < durationMs) {
+        vTaskDelay(pdMS_TO_TICKS(20));
+        if ((millis() - chStart) >= ZIGBEE_CHANNEL_DWELL_MS) {
+            ch = (ch >= ZIGBEE_CHANNEL_MAX) ? ZIGBEE_CHANNEL_MIN : (uint8_t)(ch + 1);
+            zigbee_scanner_set_channel(ch);
+            chStart = millis();
+        }
+    }
+    zigbee_scanner_stop();
+    Serial.printf("[CYCLE] zigbee phase: %d device(s) this sweep, %d total\n",
+                  zigbee_scanner_count(), zigbee_scanner_session_count());
+}
+#endif
 
 void scan_cycle_pause() {
     s_running = false;
@@ -120,8 +146,31 @@ void scan_cycle_task(void* param) {
             }
             ble_scanner_stop();
             activeBle = BLE_MODE_OFF;
+
+#if HUGINN_HAS_ZIGBEE
+            // ── Zigbee / 802.15.4 phase ──────────────────────────────────
+            // WiFi and BLE are both stopped now, so the shared radio is free.
+            if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
+                zigbee_sniff_phase(ZIGBEE_WARDRIVE_MS, MODE_WARDRIVE);
+            }
+#endif
             continue;
         }
+
+#if HUGINN_HAS_ZIGBEE
+        // ── Zigbee-only mode ─────────────────────────────────────────────
+        // First-class persistent branch (like skimmer) driven by the `zigbee`
+        // serial command: park WiFi/BLE and continuously sweep 802.15.4.
+        if (g_manualOverride && g_currentMode == MODE_ZIGBEE) {
+            if (activeBle != BLE_MODE_OFF) {
+                ble_scanner_stop();
+                activeBle = BLE_MODE_OFF;
+            }
+            wifi_scanner_stop();
+            zigbee_sniff_phase(ZIGBEE_WARDRIVE_MS, MODE_ZIGBEE);
+            continue;
+        }
+#endif
 
         // ── Skimmer-only mode ────────────────────────────────────────────
         // First-class persistent branch (like wardrive) so the BLE skimmer

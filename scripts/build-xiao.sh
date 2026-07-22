@@ -59,7 +59,7 @@ echo "==> Compiling for $FQBN"
 # 8 MB PSRAM is simply left uninitialised (not required by this firmware).
 arduino-cli compile \
   --fqbn "$FQBN" \
-  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_BOARD_XIAO_C5=1 -DHUGINN_HAS_DISPLAY=0 -DHUGINN_HAS_GPS=1 -DGPS_UART_NUM=1 -DGPS_RX_PIN=12 -DGPS_TX_PIN=1 -DCORE_DEBUG_LEVEL=3" \
+  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_BOARD_XIAO_C5=1 -DHUGINN_HAS_DISPLAY=0 -DHUGINN_HAS_ZIGBEE=1 -DHUGINN_HAS_GPS=1 -DGPS_UART_NUM=1 -DGPS_RX_PIN=12 -DGPS_TX_PIN=1 -DCORE_DEBUG_LEVEL=3" \
   --export-binaries \
   "$SKETCH_DIR"
 
