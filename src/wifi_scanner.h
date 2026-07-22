@@ -14,11 +14,6 @@ struct WifiNetwork {
 
 void wifi_scanner_init();
 
-// Fully re-initialise the WiFi radio (mode cycle) to reclaim the shared 2.4 GHz
-// radio after a BLE / 802.15.4 phase. Without it, the WiFi scan completes but
-// receives nothing once 802.15.4 has been used on the ESP32-C5.
-void wifi_scanner_reset_radio();
-
 void wifi_scanner_start();
 void wifi_scanner_start_channel(uint8_t channel);
 

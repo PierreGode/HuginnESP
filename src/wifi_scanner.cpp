@@ -96,24 +96,6 @@ void wifi_scanner_init() {
     Serial.printf("[WIFI] init done, mode=%d\n", WiFi.getMode());
 }
 
-// Reclaim the shared 2.4 GHz radio for WiFi scanning after a BLE / 802.15.4
-// (Zigbee) phase. On the ESP32-C5 these share one radio; once 802.15.4 has been
-// enabled and put into receive, the WiFi scan still completes (52/52 channels)
-// but the PHY receives nothing — so every wardrive WiFi phase after the first
-// Zigbee sweep returned zero networks. Fully cycling the WiFi mode re-initialises
-// the WiFi MAC/PHY and takes the radio back from the coexistence state.
-void wifi_scanner_reset_radio() {
-    esp_wifi_scan_stop();
-    s_scanning   = false;
-    s_scanDone   = false;
-    s_scanFailed = false;
-    WiFi.mode(WIFI_OFF);
-    vTaskDelay(pdMS_TO_TICKS(60));
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    wifi_apply_country();
-}
-
 static void wifi_scanner_start_internal(uint8_t channel) {
     if (s_scanning) return;
     s_scanning   = true;
