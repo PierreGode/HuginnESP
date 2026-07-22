@@ -67,17 +67,26 @@ void wifi_scanner_init() {
     WiFi.disconnect();
 
 #ifdef HUGINN_BOARD_C5
-    // Dual-band C5: enable 802.11d (AUTO) so the driver adapts its regulatory
-    // domain to wherever the device is powered on — it reads the country IE from
-    // local AP beacons and unlocks that region's channel set (EU: 2.4 GHz ch 1-13
-    // + 5 GHz 36-140; US: additionally UNII-3 149-165). This is what makes one
-    // build work everywhere without a per-region config. "01" (ITU world/generic
-    // — no national hardcode) is the safe baseline used until a local beacon is
-    // seen. Paired with the passive 5 GHz scanning below (mandatory on DFS), this
-    // is the works-everywhere setting.
-    esp_err_t cerr = esp_wifi_set_country_code("01", true);
+    // Dual-band C5 regulatory domain. The world code "01" does NOT include the
+    // 5 GHz UNII-3 band (channels 149-165), and 802.11d only adapts after a STA
+    // *associates* — which a scanner never does — so under "01" the US 5 GHz
+    // networks that live on 149-165 were simply never scanned. Pin the FCC/"US"
+    // domain instead: it exposes the widest common 5 GHz allocation (UNII-1
+    // 36-48, UNII-2A/2C 52-144, UNII-3 149-165), a superset of the EU set
+    // (36-140), so one build reaches every 5 GHz channel a nearby AP might use
+    // in either region. Use a MANUAL policy (802.11d off) so a beacon
+    // advertising a narrower domain can't shrink the channel set mid-scan.
+    // schan/nchan cover 2.4 GHz 1-13, keeping the EU-only channels 12/13 that a
+    // strict US 2.4 table would drop.
+    wifi_country_t ctry = {};
+    ctry.cc[0] = 'U'; ctry.cc[1] = 'S'; ctry.cc[2] = '\0';
+    ctry.schan        = 1;
+    ctry.nchan        = 13;
+    ctry.max_tx_power = 20;
+    ctry.policy       = WIFI_COUNTRY_POLICY_MANUAL;
+    esp_err_t cerr = esp_wifi_set_country(&ctry);
     if (cerr != ESP_OK) {
-        Serial.printf("[WIFI] set_country_code failed: 0x%x (%s)\n", cerr, esp_err_to_name(cerr));
+        Serial.printf("[WIFI] set_country failed: 0x%x (%s)\n", cerr, esp_err_to_name(cerr));
     }
 #endif
 
