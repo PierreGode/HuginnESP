@@ -266,7 +266,13 @@ void zigbee_scanner_init() {
     esp_ieee802154_set_rx_when_idle(true);
     esp_ieee802154_set_channel(s_channel);
     s_started = true;
-    Serial.println("[ZIGBEE] 802.15.4 radio ready (promiscuous)");
+    // Announced once; the radio is now enabled/disabled around every wardrive
+    // Zigbee phase (see zigbee_scanner_stop), so don't reprint each cycle.
+    static bool announced = false;
+    if (!announced) {
+        Serial.println("[ZIGBEE] 802.15.4 radio ready (promiscuous)");
+        announced = true;
+    }
 }
 
 void zigbee_scanner_start() {
@@ -283,9 +289,17 @@ void zigbee_scanner_start() {
 
 void zigbee_scanner_stop() {
     s_running = false;
-    // Leave the radio enabled but idle; re-armed on the next start(). The
-    // driver stops delivering once we stop calling receive() from the callback
-    // while s_running is false.
+    // Release the shared 2.4 GHz radio. On the ESP32-C5, 802.15.4 shares one
+    // 2.4 GHz radio with WiFi and BLE. Once a sweep put the 802.15.4 radio into
+    // receive (rx_when_idle=true keeps it listening), it stayed there — starving
+    // the WiFi scanner, so every wardrive WiFi phase AFTER the first Zigbee phase
+    // returned zero networks. Fully disable the radio here so WiFi reclaims it;
+    // the next start() re-enables it (s_started cleared → zigbee_scanner_init
+    // runs again).
+    if (s_started) {
+        esp_ieee802154_disable();
+        s_started = false;
+    }
 }
 
 void zigbee_scanner_set_channel(uint8_t channel) {
