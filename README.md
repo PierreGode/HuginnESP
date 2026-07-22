@@ -140,6 +140,51 @@ Tunables (override in `platformio.ini` `build_flags`):
 
 ---
 
+## Dual-band WiFi scanning (C5)
+
+The ESP32-C5 is dual-band (2.4 + 5 GHz), and the firmware is set up so a **single
+build captures 5 GHz in any region** — no per-country flashing. Two things make
+that work:
+
+**Per-channel scan type.** 5 GHz regulation splits into DFS and non-DFS bands,
+and they must be scanned differently. The firmware picks the scan type from the
+channel number:
+
+| Channels | Band | Scan type | Why |
+|---|---|---|---|
+| 1–14 | 2.4 GHz | **Active** (probe) | Universal; fast. |
+| 36–48 | 5 GHz UNII-1 (non-DFS) | **Active** (probe) | Common everywhere. |
+| 52–64, 100–144 | 5 GHz UNII-2A/2C (**DFS**) | **Passive** (listen) | DFS is passive-only by law — the radio must hear a beacon, not probe. Heavily used in the **EU**. |
+| 149–165 | 5 GHz UNII-3 (non-DFS) | **Active** (probe) | The common **US** home band; probing catches it regardless of regulatory domain. |
+
+Active probes finish fast (~30–120 ms); passive DFS channels dwell ~120 ms
+(longer than one ~100 ms beacon interval) so at least one beacon is caught, and
+the per-channel cap is widened to ~300 ms for 5 GHz so that dwell completes.
+
+**802.11d regulatory adaptation.** At init the C5 calls
+`esp_wifi_set_country_code("01", true)` — the ITU world/generic domain as a safe
+baseline, with 802.11d **enabled** so the driver adapts to the local region from
+AP beacons. This is a bonus, not a dependency: because non-DFS 5 GHz is actively
+probed and DFS is passively listened either way, 5 GHz is captured **by
+construction** even if adaptation never kicks in (a non-associating scanner may
+only ever use the `01` baseline).
+
+> Why this matters: earlier the C5 active-scanned every channel, which returns
+> nothing on DFS (passive-only) and left 5 GHz effectively empty in the EU. The
+> classic symptom was **works in the US, not the EU** — US home WiFi favours
+> non-DFS UNII-1/UNII-3, while the EU leans on DFS channels that an active-only
+> scan can't see.
+
+> Regional note: active-probing 149–165 where those channels are prohibited
+> (e.g. the EU) is harmless — there are no APs there — but the driver may log a
+> `[WIFI] scan_start FAILED` for them. That line is expected and does not affect
+> the rest of the sweep.
+
+The **S3** is 2.4 GHz-only, so none of this applies to it — it just sweeps
+channels 1–14 actively.
+
+---
+
 ## Flashing the firmware
 
 ### Option 1 — Web flasher (easiest, no toolchain)
@@ -273,7 +318,7 @@ In the default auto-cycle each WiFi scan runs for `wifi_scan_duration_ms` (8 s b
 
 | Phase | Default | Effect |
 |---|---|---|
-| WiFi (`wardrive_wifi_ms`) | 8000 ms | A weighted per-channel sweep, capped at this value. High-traffic channels (2.4 GHz 1/6/11, plus the 5 GHz channels on the C5) are visited first and repeated, then the rest are swept once. Scan type is chosen per channel so one build works in both regions: **2.4 GHz and non-DFS 5 GHz** (UNII-1 36–48, UNII-3 149–165 — the common US home band) are **actively probed** (up to ~200/300 ms each), while **DFS 5 GHz** (52–144, heavily used in the EU) is **passively scanned** (listen for a beacon, up to ~300 ms each) because DFS is passive-only by regulation. This covers US UNII-3 by probing *and* EU DFS by listening without depending on regulatory adaptation. The C5 also enables 802.11d at init (world code `01` baseline, `ieee80211d_enabled=true`) so the radio additionally adapts its domain to wherever it's powered on. The S3's 2.4 GHz list finishes well inside the cap (~3–4 s); the C5's longer dual-band list can use the full window. BSSIDs already emitted this session are de-duplicated on-device, so the host sees each AP once |
+| WiFi (`wardrive_wifi_ms`) | 8000 ms | A weighted per-channel sweep, capped at this value. High-traffic channels (2.4 GHz 1/6/11, plus the 5 GHz channels on the C5) are visited first and repeated, then the rest are swept once. On the C5 the scan type is chosen per channel (active for 2.4 GHz + non-DFS 5 GHz, passive for DFS) so 5 GHz is captured in any region — see [Dual-band WiFi scanning (C5)](#dual-band-wifi-scanning-c5). The S3's 2.4 GHz list finishes well inside the cap (~3–4 s); the C5's longer dual-band list can use the full window. BSSIDs already emitted this session are de-duplicated on-device, so the host sees each AP once |
 | BLE all (`wardrive_ble_ms`) | 1500 ms | Covers all 3 BLE advertising channels with margin; Flipper / AirTag / skimmer detections fire passively from the same stream |
 
 The WiFi phase revisits the busy channels frequently while still covering the whole band, so a moving capture catches in-range APs several times per pass. Lower `wardrive_wifi_ms` (min 1000 ms) for a faster loop with shallower per-channel coverage. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
