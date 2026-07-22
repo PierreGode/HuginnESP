@@ -107,7 +107,15 @@ void scan_cycle_task(void* param) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;
             }
+            // De-dup within a single sweep (the channel list revisits 1/6/11 and
+            // the 5 GHz channels, so an AP would otherwise be emitted 2-3× per
+            // cycle), but reset it every cycle so each AP is re-emitted once per
+            // pass with a fresh GPS fix. Without the reset the set accumulates
+            // for the whole boot session — each AP is sent exactly once ever, so
+            // a host that connects after the first sweep (e.g. Ragnar) sees zero
+            // WiFi while BLE, which isn't de-duped, keeps streaming.
             wifi_scanner_set_dedup(true);
+            wifi_scanner_reset_dedup();
 
             uint32_t phaseStart = millis();
             size_t channelsDone = 0;
