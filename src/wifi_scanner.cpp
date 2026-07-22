@@ -67,27 +67,17 @@ void wifi_scanner_init() {
     WiFi.disconnect();
 
 #ifdef HUGINN_BOARD_C5
-    // Dual-band C5: without a regulatory policy the driver won't receive on most
-    // 5 GHz channels, so 5 GHz APs never show up. Give it a permissive MANUAL
-    // policy — the driver honours our channel choices instead of deferring to a
-    // narrower domain a nearby AP might advertise (802.11d). We deliberately do
-    // NOT hardcode a national domain: "01" is the ITU world/generic code, and we
-    // reach the 5 GHz channels via explicit passive per-channel scans (see
-    // wifi_scanner_start_internal — passive RX on a tuned channel is not gated
-    // the way active probing is, so this covers the common 5 GHz channels
-    // without pinning the device to one country's active-scan rules).
-    wifi_country_t ctry = {};
-    ctry.cc[0] = '0'; ctry.cc[1] = '1'; ctry.cc[2] = '\0';  // ITU world / generic
-    ctry.schan        = 1;
-    ctry.nchan        = 13;
-    ctry.max_tx_power = 20;
-    // MANUAL policy = always use this config, never defer to a country IE a
-    // beacon advertises (that's how APs would otherwise downgrade us to a
-    // narrower 5 GHz subset). This is the permissive, no-national-hardcode knob.
-    ctry.policy       = WIFI_COUNTRY_POLICY_MANUAL;
-    esp_err_t cerr = esp_wifi_set_country(&ctry);
+    // Dual-band C5: enable 802.11d (AUTO) so the driver adapts its regulatory
+    // domain to wherever the device is powered on — it reads the country IE from
+    // local AP beacons and unlocks that region's channel set (EU: 2.4 GHz ch 1-13
+    // + 5 GHz 36-140; US: additionally UNII-3 149-165). This is what makes one
+    // build work everywhere without a per-region config. "01" (ITU world/generic
+    // — no national hardcode) is the safe baseline used until a local beacon is
+    // seen. Paired with the passive 5 GHz scanning below (mandatory on DFS), this
+    // is the works-everywhere setting.
+    esp_err_t cerr = esp_wifi_set_country_code("01", true);
     if (cerr != ESP_OK) {
-        Serial.printf("[WIFI] set_country failed: 0x%x (%s)\n", cerr, esp_err_to_name(cerr));
+        Serial.printf("[WIFI] set_country_code failed: 0x%x (%s)\n", cerr, esp_err_to_name(cerr));
     }
 #endif
 
