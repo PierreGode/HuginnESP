@@ -107,10 +107,6 @@ void scan_cycle_task(void* param) {
                 ble_scanner_stop();
                 activeBle = BLE_MODE_OFF;
             }
-            // Reclaim the shared 2.4 GHz radio before scanning. On the C5 the
-            // BLE and 802.15.4 phases leave the WiFi PHY in a state where the
-            // scan completes but receives nothing, so re-init WiFi each cycle.
-            wifi_scanner_reset_radio();
             // De-dup within a single sweep (the channel list revisits 1/6/11 and
             // the 5 GHz channels, so an AP would otherwise be emitted 2-3× per
             // cycle), but reset it every cycle so each AP is re-emitted once per
@@ -163,13 +159,14 @@ void scan_cycle_task(void* param) {
             ble_scanner_stop();
             activeBle = BLE_MODE_OFF;
 
-#if HUGINN_HAS_ZIGBEE
-            // ── Zigbee / 802.15.4 phase ──────────────────────────────────
-            // WiFi and BLE are both stopped now, so the shared radio is free.
-            if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-                zigbee_sniff_phase(ZIGBEE_WARDRIVE_MS, MODE_WARDRIVE);
-            }
-#endif
+            // NOTE: no 802.15.4/Zigbee phase in the wardrive cycle on the C5.
+            // WiFi, BLE and 802.15.4 share ONE 2.4 GHz radio; once 802.15.4 has
+            // been put into receive, the WiFi scan still completes but the PHY
+            // receives nothing, and it cannot be reclaimed without re-initing
+            // WiFi — which on this ~116 KB heap exhausts memory and takes down
+            // the other radios too. So wardrive stays WiFi + BLE (which coexist
+            // fine). For Zigbee/Thread, use the dedicated `zigbee` command,
+            // which parks WiFi/BLE and gives 802.15.4 the radio exclusively.
             continue;
         }
 
