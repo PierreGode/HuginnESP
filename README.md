@@ -9,8 +9,8 @@ WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning
 | Board | MCU | Radio | Display |
 |---|---|---|---|
 | **Waveshare ESP32-S3-Touch-LCD-4B** | ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM) | WiFi 2.4 GHz + BLE 5 | 4" 480×480 RGB touch (GT911) |
-| **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
-| **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 | none (headless) |
+| **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
+| **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 
 All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The two C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
 
@@ -20,6 +20,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 |---|---|
 | **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3, dual-band on C5 |
 | **BLE Scan** | Scan BLE devices (MAC, name, RSSI) — Flipper / AirTag / skimmer classification is emitted as separate alert lines |
+| **Zigbee / 802.15.4 Scan** | **ESP32-C5 only.** Promiscuous IEEE 802.15.4 sniff across Zigbee channels 11–26; every frame with a source address is emitted as a `ZIGBEE` JSON line (PAN ID, EUI-64 / short address, channel, RSSI, LQI). Runs automatically as a phase of wardrive, or on demand via the `zigbee` command. Not available on the S3 / classic ESP32 (no 802.15.4 radio) |
 | **Flipper Zero Detection** | Identify Flipper Zero devices via BLE advertisement data |
 | **AirTag Detection** | Identify Apple AirTags via BLE manufacturer data |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
@@ -196,7 +197,43 @@ The very first line on every boot is a device announce so a host can tell Huginn
 {"device":"HuginnESP","fw":"1.0","board":"esp32-s3","caps":["wifi","ble","display"]}
 ```
 
-`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (`display` is S3-only, `gps` appears only in GPS-enabled builds). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
+`board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (`display` is S3-only, `zigbee` appears only on 802.15.4-capable C5 builds, `gps` appears only in GPS-enabled builds). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
+
+### Zigbee / IEEE 802.15.4 (ESP32-C5)
+
+The ESP32-C5's radio also speaks IEEE 802.15.4, so C5 builds add a Zigbee
+sniffer (`-DHUGINN_HAS_ZIGBEE=1`, on by default in the `esp32c5` /
+`esp32c5-gps` environments and the XIAO build). It listens promiscuously and
+hops across the 2.4 GHz Zigbee channels (11–26), emitting one JSON line per
+frame that carries a source address:
+
+```json
+{"type":"ZIGBEE","panid":"0x1A2B","addr":"AABBCCDDEEFF0011","channel":15,"rssi":-70,"lqi":180,"ftype":"beacon"}
+```
+
+- `addr` is the 64-bit extended source address (EUI-64, canonical MSB-first).
+  Frames that only carry a 16-bit short address emit `"short":"0x1234"` instead;
+  the host keys those by `panid:short`.
+- `ftype` is `beacon` / `data` / `cmd`. ACK frames (no addresses) are ignored.
+- `lat`/`lon` are appended when a GPS module has a fix, same as `WIFI` lines.
+
+Because WiFi, BLE and 802.15.4 share the single 2.4 GHz radio on the C5, the
+scan cycle parks WiFi and BLE while the Zigbee phase runs (mirroring the
+pineapple check). During wardrive a short Zigbee sweep (`ZIGBEE_WARDRIVE_MS`,
+default 3 s) runs after each WiFi+BLE round; the `zigbee` serial command
+switches to continuous Zigbee-only sniffing, and `stop` returns to auto-cycle.
+
+Tunables (override in `platformio.ini` `build_flags`):
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `ZIGBEE_CHANNEL_MIN` / `ZIGBEE_CHANNEL_MAX` | `11` / `26` | 802.15.4 channel range to sweep |
+| `ZIGBEE_CHANNEL_DWELL_MS` | `300` | Listen time per channel before hopping |
+| `ZIGBEE_WARDRIVE_MS` | `3000` | Zigbee sniff time per wardrive cycle |
+
+> Setting `-DHUGINN_HAS_ZIGBEE=1` on a board without an 802.15.4 radio (S3,
+> classic ESP32) compiles cleanly but the scanner disables itself at boot with
+> a one-line notice — the radio simply isn't there.
 
 After the announce line, the stream is a mix of:
 

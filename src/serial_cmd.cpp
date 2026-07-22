@@ -1,6 +1,7 @@
 #include "serial_cmd.h"
 #include "wifi_scanner.h"
 #include "ble_scanner.h"
+#include "zigbee_scanner.h"
 #include "scan_cycle.h"
 #include "config.h"
 #include "runtime_config.h"
@@ -28,6 +29,7 @@ const char* scanModeName(ScanMode mode) {
         case MODE_PINEAPPLE:    return "pineapple";
         case MODE_AUTO_CYCLE:   return "auto";
         case MODE_WARDRIVE:     return "wardrive";
+        case MODE_ZIGBEE:       return "zigbee";
         default:                return "unknown";
     }
 }
@@ -65,6 +67,16 @@ static void handleCommand(const String& cmd) {
         g_currentMode = MODE_SKIMMER;
         ble_scanner_start(BLE_MODE_SKIMMER);
 
+    } else if (c == "zigbee" || c == "zbscan") {
+#if HUGINN_HAS_ZIGBEE
+        g_manualOverride = true;
+        wifi_scanner_stop();
+        ble_scanner_stop();
+        g_currentMode = MODE_ZIGBEE;
+#else
+        Serial.println("{\"error\":\"Zigbee not compiled in (needs 802.15.4 radio, e.g. ESP32-C5)\"}");
+#endif
+
     } else if (c == "pineap") {
         g_manualOverride = true;
         ble_scanner_stop();
@@ -86,10 +98,11 @@ static void handleCommand(const String& cmd) {
         scan_cycle_resume();
 
     } else if (c == "status") {
-        Serial.printf("{\"mode\":\"%s\",\"wifi_count\":%d,\"ble_count\":%d}\n",
+        Serial.printf("{\"mode\":\"%s\",\"wifi_count\":%d,\"ble_count\":%d,\"zigbee_count\":%d}\n",
                       scanModeName(g_currentMode),
                       wifi_scanner_count(),
-                      ble_scanner_count());
+                      ble_scanner_count(),
+                      zigbee_scanner_session_count());
 
     } else if (c == "gps") {
 #if HUGINN_HAS_GPS

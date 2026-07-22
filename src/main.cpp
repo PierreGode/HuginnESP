@@ -19,6 +19,7 @@
 #endif
 #include "ble_scanner.h"
 #include "wifi_scanner.h"
+#include "zigbee_scanner.h"
 #include "serial_cmd.h"
 #include "scan_cycle.h"
 #include "runtime_config.h"
@@ -41,14 +42,18 @@ void setup() {
 #else
     const char* HUGINN_BOARD_NAME = "unknown";
 #endif
-#if HUGINN_HAS_DISPLAY && HUGINN_HAS_GPS
-    const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"display\",\"gps\"";
-#elif HUGINN_HAS_DISPLAY
-    const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"display\"";
-#elif HUGINN_HAS_GPS
-    const char* HUGINN_CAPS = "\"wifi\",\"ble\",\"gps\"";
-#else
-    const char* HUGINN_CAPS = "\"wifi\",\"ble\"";
+    // Build the capability list dynamically so each optional feature adds its
+    // own token without a combinatorial nest of #if branches.
+    char HUGINN_CAPS[96];
+    strlcpy(HUGINN_CAPS, "\"wifi\",\"ble\"", sizeof(HUGINN_CAPS));
+#if HUGINN_HAS_ZIGBEE
+    strlcat(HUGINN_CAPS, ",\"zigbee\"", sizeof(HUGINN_CAPS));
+#endif
+#if HUGINN_HAS_DISPLAY
+    strlcat(HUGINN_CAPS, ",\"display\"", sizeof(HUGINN_CAPS));
+#endif
+#if HUGINN_HAS_GPS
+    strlcat(HUGINN_CAPS, ",\"gps\"", sizeof(HUGINN_CAPS));
 #endif
     // Device announce — emitted first so the host can distinguish HuginnESP
     // from other ESP32 firmware sharing the USB bus.
@@ -91,6 +96,12 @@ void setup() {
     Serial.println("[BOOT] Init BLE...");
     ble_scanner_init();
     Serial.println("[BOOT] BLE OK");
+
+#if HUGINN_HAS_ZIGBEE
+    Serial.println("[BOOT] Init Zigbee (802.15.4)...");
+    zigbee_scanner_init();
+    Serial.println("[BOOT] Zigbee init done");
+#endif
 
     // Skimmer proximity LED (no-op unless -DHUGINN_HAS_SKIMMER_LED=1).
     skimmer_led_init();

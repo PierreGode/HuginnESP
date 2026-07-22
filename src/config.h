@@ -123,6 +123,31 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
 #define MODE_BTN_TASK_STACK    2048
 #endif
 
+// ----- Zigbee / IEEE 802.15.4 scan (optional — enabled by -DHUGINN_HAS_ZIGBEE=1) -----
+// Only boards with an 802.15.4 radio can do this (ESP32-C5 / C6 / H2). The
+// scanner listens promiscuously on the 2.4 GHz 802.15.4 channels (11–26),
+// hopping across them, and emits a {"type":"ZIGBEE",...} JSON line for every
+// frame that carries a source address. WiFi and BLE are parked for the phase
+// so the shared 2.4 GHz radio is free (mirrors how the pineapple check parks
+// BLE). Enabled by default on the C5 environments in platformio.ini.
+#if HUGINN_HAS_ZIGBEE
+#ifndef ZIGBEE_CHANNEL_MIN
+#define ZIGBEE_CHANNEL_MIN        11    // lowest 802.15.4 2.4 GHz channel
+#endif
+#ifndef ZIGBEE_CHANNEL_MAX
+#define ZIGBEE_CHANNEL_MAX        26    // highest 802.15.4 2.4 GHz channel
+#endif
+#ifndef ZIGBEE_CHANNEL_DWELL_MS
+#define ZIGBEE_CHANNEL_DWELL_MS  300    // listen this long per channel before hopping
+#endif
+#ifndef ZIGBEE_WARDRIVE_MS
+#define ZIGBEE_WARDRIVE_MS      3000    // total Zigbee sniff time per wardrive cycle
+#endif
+#ifndef ZIGBEE_SESSION_TRACK_CAP
+#define ZIGBEE_SESSION_TRACK_CAP 1024   // cap on unique-device set (bounds RAM)
+#endif
+#endif
+
 // ----- Flipper Zero BLE identification -----
 // Flipper Zero manufacturer data company ID (0x4C01 is the placeholder;
 // real identification uses service UUID + manufacturer data heuristics)
