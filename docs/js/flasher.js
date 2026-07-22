@@ -283,13 +283,31 @@ async function sendSerial(text) {
   serialLog("> " + text + "\n");
 }
 
+/* Download whatever is currently in the serial monitor as a .txt file. */
+function exportSerialLog() {
+  const text = $("serial-log").textContent || "";
+  if (!text.trim()) return;                       // nothing to save
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `huginn-serial-${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const closeBtn = $("serial-close");
   const clearBtn = $("serial-clear");
+  const exportBtn = $("serial-export");
   const sendBtn = $("serial-send");
   const input = $("serial-input");
 
   if (closeBtn) closeBtn.addEventListener("click", closeSerial);
+  if (exportBtn) exportBtn.addEventListener("click", exportSerialLog);
   if (clearBtn) clearBtn.addEventListener("click", () => { $("serial-log").textContent = ""; });
   if (sendBtn) sendBtn.addEventListener("click", () => {
     const text = input.value.trim();

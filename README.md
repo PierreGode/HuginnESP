@@ -161,13 +161,16 @@ Active probes finish fast (~30–120 ms); passive DFS channels dwell ~120 ms
 (longer than one ~100 ms beacon interval) so at least one beacon is caught, and
 the per-channel cap is widened to ~300 ms for 5 GHz so that dwell completes.
 
-**802.11d regulatory adaptation.** At init the C5 calls
-`esp_wifi_set_country_code("01", true)` — the ITU world/generic domain as a safe
-baseline, with 802.11d **enabled** so the driver adapts to the local region from
-AP beacons. This is a bonus, not a dependency: because non-DFS 5 GHz is actively
-probed and DFS is passively listened either way, 5 GHz is captured **by
-construction** even if adaptation never kicks in (a non-associating scanner may
-only ever use the `01` baseline).
+**Regulatory domain.** At init the C5 pins the FCC/`US` domain with a **manual**
+policy (`esp_wifi_set_country`, 802.11d off). The reason: the ITU world code
+`01` does **not** include the 5 GHz UNII-3 band (channels 149–165), and 802.11d
+only adapts after a station *associates* — which a scanner never does — so under
+`01` the US networks on 149–165 were never scanned. The `US` domain exposes the
+widest common 5 GHz allocation (UNII-1 36–48, UNII-2A/2C 52–144, UNII-3
+149–165), a **superset of the EU set** (36–140), so one build reaches every
+5 GHz channel a nearby AP might use in either region. `schan/nchan` still cover
+2.4 GHz 1–13, keeping the EU-only channels 12/13. A manual policy stops a beacon
+advertising a narrower domain from shrinking the channel set mid-scan.
 
 > Why this matters: earlier the C5 active-scanned every channel, which returns
 > nothing on DFS (passive-only) and left 5 GHz effectively empty in the EU. The
