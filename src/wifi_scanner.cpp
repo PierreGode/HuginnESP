@@ -96,13 +96,19 @@ static void wifi_scanner_start_internal(uint8_t channel) {
     cfg.show_hidden = false;
     cfg.channel     = channel;
 
-    // 2.4 GHz (channels 1–14) supports fast active probing. 5 GHz channels —
-    // especially DFS (52–144) — are passive-only by regulation: the radio must
-    // listen for a beacon rather than transmit a probe. Active-scanning them
-    // returns nothing, which is why 5 GHz APs never appeared. Use a passive
-    // listen with a dwell longer than the ~100 ms beacon interval so at least
-    // one beacon is caught. channel 0 ("all") keeps the legacy active behaviour.
-    if (channel >= 36) {
+    // Scan type per channel — chosen so one build works in both regions without
+    // relying on 802.11d actually adapting (which a non-associating scanner may
+    // never do):
+    //   * DFS 5 GHz (52–144, UNII-2A/2C) is passive-only by regulation — the
+    //     radio must LISTEN for a beacon, not probe. These are heavily used in
+    //     the EU, and active-scanning them returns nothing. Dwell longer than a
+    //     ~100 ms beacon interval so at least one beacon is caught.
+    //   * Non-DFS 5 GHz (UNII-1 36–48, UNII-3 149–165) and all 2.4 GHz use fast
+    //     ACTIVE probing. UNII-3 is the common US home band; active-probing it
+    //     (as the firmware did before) is what makes US 5 GHz appear regardless
+    //     of whether the regulatory domain adapted. channel 0 ("all") stays active.
+    const bool isDfs = (channel >= 52 && channel <= 144);
+    if (isDfs) {
         cfg.scan_type         = WIFI_SCAN_TYPE_PASSIVE;
         cfg.scan_time.passive = 120;   // ms dwell, > one beacon interval
     } else {
