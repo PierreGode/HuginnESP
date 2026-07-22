@@ -65,6 +65,32 @@ void wifi_scanner_init() {
     if (!s_sessionMutex) s_sessionMutex = xSemaphoreCreateMutex();
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
+
+#ifdef HUGINN_BOARD_C5
+    // Dual-band C5: without a regulatory policy the driver won't receive on most
+    // 5 GHz channels, so 5 GHz APs never show up. Give it a permissive MANUAL
+    // policy — the driver honours our channel choices instead of deferring to a
+    // narrower domain a nearby AP might advertise (802.11d). We deliberately do
+    // NOT hardcode a national domain: "01" is the ITU world/generic code, and we
+    // reach the 5 GHz channels via explicit passive per-channel scans (see
+    // wifi_scanner_start_internal — passive RX on a tuned channel is not gated
+    // the way active probing is, so this covers the common 5 GHz channels
+    // without pinning the device to one country's active-scan rules).
+    wifi_country_t ctry = {};
+    ctry.cc[0] = '0'; ctry.cc[1] = '1'; ctry.cc[2] = '\0';  // ITU world / generic
+    ctry.schan        = 1;
+    ctry.nchan        = 13;
+    ctry.max_tx_power = 20;
+    // MANUAL policy = always use this config, never defer to a country IE a
+    // beacon advertises (that's how APs would otherwise downgrade us to a
+    // narrower 5 GHz subset). This is the permissive, no-national-hardcode knob.
+    ctry.policy       = WIFI_COUNTRY_POLICY_MANUAL;
+    esp_err_t cerr = esp_wifi_set_country(&ctry);
+    if (cerr != ESP_OK) {
+        Serial.printf("[WIFI] set_country failed: 0x%x (%s)\n", cerr, esp_err_to_name(cerr));
+    }
+#endif
+
     WiFi.onEvent(onScanEvent, ARDUINO_EVENT_WIFI_SCAN_DONE);
     Serial.printf("[WIFI] init done, mode=%d\n", WiFi.getMode());
 }
@@ -78,10 +104,22 @@ static void wifi_scanner_start_internal(uint8_t channel) {
 
     wifi_scan_config_t cfg = {};
     cfg.show_hidden = false;
-    cfg.scan_type   = WIFI_SCAN_TYPE_ACTIVE;
     cfg.channel     = channel;
-    cfg.scan_time.active.min = 30;
-    cfg.scan_time.active.max = 120;
+
+    // 2.4 GHz (channels 1–14) supports fast active probing. 5 GHz channels —
+    // especially DFS (52–144) — are passive-only by regulation: the radio must
+    // listen for a beacon rather than transmit a probe. Active-scanning them
+    // returns nothing, which is why 5 GHz APs never appeared. Use a passive
+    // listen with a dwell longer than the ~100 ms beacon interval so at least
+    // one beacon is caught. channel 0 ("all") keeps the legacy active behaviour.
+    if (channel >= 36) {
+        cfg.scan_type         = WIFI_SCAN_TYPE_PASSIVE;
+        cfg.scan_time.passive = 120;   // ms dwell, > one beacon interval
+    } else {
+        cfg.scan_type            = WIFI_SCAN_TYPE_ACTIVE;
+        cfg.scan_time.active.min = 30;
+        cfg.scan_time.active.max = 120;
+    }
 
     esp_err_t err = esp_wifi_scan_start(&cfg, false);
     if (err != ESP_OK) {

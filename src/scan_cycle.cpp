@@ -117,8 +117,12 @@ void scan_cycle_task(void* param) {
                 uint8_t ch = kWardriveChannels[channelsDone++];
                 wifi_scanner_start_channel(ch);
                 uint32_t chStart = millis();
+                // 5 GHz channels are scanned passively (listen for a beacon),
+                // which dwells ~120 ms — give them a wider cap than the fast
+                // active 2.4 GHz probes so the scan finishes before we move on.
+                uint32_t chBudget = (ch >= 36) ? 300 : 200;
                 while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
-                    if ((millis() - chStart) > 200
+                    if ((millis() - chStart) > chBudget
                         || (millis() - phaseStart) >= g_wardriveWifiMs) {
                         wifi_scanner_stop();
                         break;
