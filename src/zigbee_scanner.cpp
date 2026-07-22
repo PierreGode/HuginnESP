@@ -63,7 +63,8 @@ static String hex16(uint16_t v) {
 // routers from flooding the serial link). The session set drives the tally.
 static void emitDevice(const String& key, const String& panidStr,
                        bool haveExt, const String& extStr, uint16_t shortAddr,
-                       bool haveShort, uint8_t ftype, int rssi, int lqi) {
+                       bool haveShort, uint8_t ftype, int rssi, int lqi,
+                       const char* proto) {
     bool isNew = false;
     if (s_mutex && xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {
         if (s_phaseSeen.find(key) == s_phaseSeen.end()) {
@@ -90,6 +91,7 @@ static void emitDevice(const String& key, const String& panidStr,
     line += ",\"rssi\":" + String(rssi);
     line += ",\"lqi\":" + String(lqi);
     line += ",\"ftype\":\"" + String(frameTypeName(ftype)) + "\"";
+    line += ",\"proto\":\"" + String(proto) + "\"";
 #if HUGINN_HAS_GPS
     GpsPosition gp = gps_get_position();
     if (gp.fix) {
@@ -102,6 +104,49 @@ static void emitDevice(const String& key, const String& panidStr,
 #endif
     line += "}";
     Serial.println(line);
+}
+
+// ---- Protocol classification ----
+// Zigbee and Thread both ride on 802.15.4; they can be told apart from what
+// sits just above the MAC header. Best-effort: link-layer-encrypted data frames
+// are opaque, so those fall back to the generic "802.15.4". (Matter-over-Thread
+// is ordinary Thread traffic at this layer, so it reports as "thread".)
+static const char* classifyProto(const uint8_t* psdu, size_t maxOff,
+                                 size_t payloadOff, uint8_t ftype,
+                                 bool secEnabled) {
+    if (ftype == 0) {  // beacon — payload starts with the stack's protocol ID
+        // MAC beacon body = Superframe(2) + GTS + Pending-Address, then the
+        // beacon payload whose first byte is the protocol ID (Zigbee = 0x00,
+        // Thread = 0x03). Walk the intermediate fields to reach it.
+        size_t o = payloadOff;
+        if (o + 2 > maxOff) return "802.15.4";
+        o += 2;                                       // superframe specification
+        if (o + 1 > maxOff) return "802.15.4";
+        uint8_t gts = psdu[o++];                      // GTS specification
+        uint8_t gtsCount = gts & 0x07;
+        if (gtsCount) o += 1 + (size_t)gtsCount * 3;  // directions + descriptors
+        if (o + 1 > maxOff) return "802.15.4";
+        uint8_t pend = psdu[o++];                     // Pending-Address spec
+        o += (size_t)(pend & 0x07) * 2 + (size_t)((pend >> 4) & 0x07) * 8;
+        if (o >= maxOff) return "802.15.4";
+        uint8_t pid = psdu[o];
+        if (pid == 0x00) return "zigbee";
+        if (pid == 0x03) return "thread";
+        return "802.15.4";
+    }
+    // Data / command frames. An encrypted frame's first payload byte is the
+    // security-control header, not the network dispatch, so don't guess.
+    if (secEnabled) return "802.15.4";
+    if (payloadOff >= maxOff) return "802.15.4";
+    uint8_t b = psdu[payloadOff];
+    // 6LoWPAN dispatch → Thread (Thread carries IPv6 over 6LoWPAN).
+    if (b == 0x41 || b == 0x42 || b == 0x50) return "thread";       // IPv6/HC1/BC0
+    if ((b & 0xE0) == 0x60) return "thread";                        // IPHC  011xxxxx
+    if ((b & 0xC0) == 0x80) return "thread";                        // MESH  10xxxxxx
+    if ((b & 0xF8) == 0xC0 || (b & 0xF8) == 0xE0) return "thread";  // FRAG1/FRAGN
+    // Zigbee NWK frame control: protocol version 2 (Zigbee PRO) in bits 2–5.
+    if ((b & 0x3C) == 0x08) return "zigbee";
+    return "802.15.4";
 }
 
 // ---- 802.15.4 MAC header parser ----
@@ -166,13 +211,21 @@ static void parseFrame(const uint8_t* frame, int rssi, int lqi) {
         if (off + 2 > maxOff) return;
         shortAddr = (uint16_t)psdu[off] | ((uint16_t)psdu[off + 1] << 8);
         haveShort = true;
+        off += 2;                          // advance to the MAC payload
     } else if (srcMd == 3) {               // extended source
         if (off + 8 > maxOff) return;
         extStr = formatExt(&psdu[off]);
         haveExt = true;
+        off += 8;                          // advance to the MAC payload
     } else {
         return;                            // reserved
     }
+
+    // Distinguish Zigbee vs Thread from the bytes above the MAC header. `off`
+    // now points at the MAC payload (or the auxiliary security header, handled
+    // inside classifyProto). The security-enabled bit is FCF bit 3.
+    const bool secEnabled = (fcf >> 3) & 0x01;
+    const char* proto = classifyProto(psdu, maxOff, off, ftype, secEnabled);
 
     // Beacons carry the coordinator's PAN in the *source* PAN field; if a
     // frame only had a dest PAN, fall back to that so we still tag a network.
@@ -184,7 +237,7 @@ static void parseFrame(const uint8_t* frame, int rssi, int lqi) {
     String key = haveExt ? extStr : (panidStr + ":" + hex16(shortAddr));
 
     emitDevice(key, panidStr, haveExt, extStr, shortAddr, haveShort,
-               ftype, rssi, lqi);
+               ftype, rssi, lqi, proto);
 }
 
 // ---- 802.15.4 driver receive callback ----

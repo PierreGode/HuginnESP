@@ -20,7 +20,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 |---|---|
 | **WiFi Scan** | Scan WiFi networks (SSID, BSSID, RSSI, channel, security) — 2.4 GHz on S3, dual-band on C5 |
 | **BLE Scan** | Scan BLE devices (MAC, name, RSSI) — Flipper / AirTag / skimmer classification is emitted as separate alert lines |
-| **Zigbee / 802.15.4 Scan** | **ESP32-C5 only.** Promiscuous IEEE 802.15.4 sniff across Zigbee channels 11–26; every frame with a source address is emitted as a `ZIGBEE` JSON line (PAN ID, EUI-64 / short address, channel, RSSI, LQI). Runs automatically as a phase of wardrive, or on demand via the `zigbee` command. Not available on the S3 / classic ESP32 (no 802.15.4 radio) |
+| **802.15.4 Scan (Zigbee / Thread)** | **ESP32-C5 only.** Promiscuous IEEE 802.15.4 sniff across channels 11–26; every frame with a source address is emitted (PAN ID, EUI-64 / short address, channel, RSSI, LQI) with a `proto` tag classifying it as `zigbee` / `thread` / `802.15.4`. Matter-over-Thread reports as `thread`. Runs automatically as a phase of wardrive, or on demand via the `zigbee` command. Not available on the S3 / classic ESP32 (no 802.15.4 radio) |
 | **Flipper Zero Detection** | Identify Flipper Zero devices via BLE advertisement data |
 | **AirTag / Find My Detection** | Flag Apple Find My trackers via BLE manufacturer data. Matches only the full offline-finding "separated" beacon (Apple company `0x004C`, type `0x12`, length `0x19`) — the high-confidence standalone-tracker signal — so it does **not** fire on the ambient Find My chatter every nearby iPhone/Mac/AirPods relays. Each unique tracker MAC alerts once (AirTag MACs rotate ~15 min, so a tag reappears under a fresh anonymous identity) |
 | **BLE Spam Detection** | Detect BLE advertising spam attacks |
@@ -246,20 +246,28 @@ The very first line on every boot is a device announce so a host can tell Huginn
 
 ### Zigbee / IEEE 802.15.4 (ESP32-C5)
 
-The ESP32-C5's radio also speaks IEEE 802.15.4, so C5 builds add a Zigbee
+The ESP32-C5's radio also speaks IEEE 802.15.4, so C5 builds add an 802.15.4
 sniffer (`-DHUGINN_HAS_ZIGBEE=1`, on by default in the `esp32c5` /
 `esp32c5-gps` environments and the XIAO build). It listens promiscuously and
-hops across the 2.4 GHz Zigbee channels (11–26), emitting one JSON line per
-frame that carries a source address:
+hops across the 2.4 GHz channels (11–26), emitting one JSON line per frame that
+carries a source address:
 
 ```json
-{"type":"ZIGBEE","panid":"0x1A2B","addr":"AABBCCDDEEFF0011","channel":15,"rssi":-70,"lqi":180,"ftype":"beacon"}
+{"type":"ZIGBEE","panid":"0x1A2B","addr":"AABBCCDDEEFF0011","channel":15,"rssi":-70,"lqi":180,"ftype":"beacon","proto":"thread"}
 ```
 
 - `addr` is the 64-bit extended source address (EUI-64, canonical MSB-first).
   Frames that only carry a 16-bit short address emit `"short":"0x1234"` instead;
   the host keys those by `panid:short`.
 - `ftype` is `beacon` / `data` / `cmd`. ACK frames (no addresses) are ignored.
+- `proto` classifies the network layer riding on 802.15.4: **`zigbee`**,
+  **`thread`**, or **`802.15.4`** (unknown). It's inferred from the beacon
+  protocol ID and the payload dispatch above the MAC header — Zigbee's NWK
+  header vs Thread's 6LoWPAN dispatch. Link-layer-encrypted data frames are
+  opaque, so those report `802.15.4`; the network's beacons still classify it.
+  **Matter-over-Thread** is ordinary Thread traffic at this layer, so it reports
+  `thread`. (`type` stays `ZIGBEE` as the record/transport tag for backward
+  compatibility; `proto` carries the real protocol.)
 - `lat`/`lon` are appended when a GPS module has a fix, same as `WIFI` lines.
 
 Because WiFi, BLE and 802.15.4 share the single 2.4 GHz radio on the C5, the
