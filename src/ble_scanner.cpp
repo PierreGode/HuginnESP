@@ -56,22 +56,29 @@ static bool isFlipperDevice(BLEAdvertisedDevice& dev, uint8_t& color) {
     return false;
 }
 
-// ---- AirTag detection ----
+// ---- AirTag / Find My tracker detection ----
+// Apple's manufacturer data is [company 0x004C][type][len][payload...]. The
+// old heuristic matched type 0x12 OR 0x07 with no length check, which flooded
+// with false positives:
+//   * 0x07 is AirPods proximity-pairing — a headset, not a tracker.
+//   * 0x12 (Find My / Offline-Finding) is relayed by EVERY nearby Apple device
+//     (iPhone, Mac, AirPods…) as a short 2-byte "nearby" beacon, not just tags.
+// A standalone tracker separated from its owner broadcasts the full
+// offline-finding payload: type 0x12 with length byte 0x19 (25 bytes of status
+// + rotating public key). Requiring that keeps the strong tracker signal and
+// drops the ambient Apple-device chatter. AirTags rotate their MAC (~15 min),
+// so a physical tag legitimately reappears under a fresh anonymous identity.
 static bool isAirTagDevice(BLEAdvertisedDevice& dev) {
     if (!dev.haveManufacturerData()) return false;
     String mfr = dev.getManufacturerData();
-    if (mfr.length() < 2) return false;
+    if (mfr.length() < 4) return false;
 
     uint16_t companyId = (uint16_t)(uint8_t)mfr[0] | ((uint16_t)(uint8_t)mfr[1] << 8);
     if (companyId != APPLE_COMPANY_ID) return false;
 
-    if (mfr.length() >= 3) {
-        uint8_t typeByte = (uint8_t)mfr[2];
-        if (typeByte == 0x12 || typeByte == 0x07) {
-            return true;
-        }
-    }
-    return false;
+    const uint8_t type = (uint8_t)mfr[2];
+    const uint8_t len  = (uint8_t)mfr[3];
+    return type == 0x12 && len == 0x19;   // Find My, full separated-state payload
 }
 
 // ---- Skimmer detection ----
@@ -109,10 +116,18 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
         bool skimmer = isSkimmerDevice(advertisedDevice);
 
         // Session totals — unique MACs since boot (capped to bound memory).
+        // Capture whether this AirTag MAC is newly seen so we alert once per
+        // unique tracker instead of on every advertisement (the old static
+        // counter recounted the same tag every sweep).
+        bool airtagNew    = false;
+        int  airtagUnique = 0;
         if (s_sessionMutex && xSemaphoreTake(s_sessionMutex, portMAX_DELAY) == pdTRUE) {
             if (s_sessionBleMacs.size() < BLE_SESSION_TRACK_CAP) s_sessionBleMacs.insert(mac);
             if (flipper) s_sessionFlipperMacs.insert(mac);
-            if (airtag)  s_sessionAirtagMacs.insert(mac);
+            if (airtag) {
+                airtagNew    = s_sessionAirtagMacs.insert(mac).second;
+                airtagUnique = (int)s_sessionAirtagMacs.size();
+            }
             if (skimmer) s_sessionSkimmerMacs.insert(mac);
             xSemaphoreGive(s_sessionMutex);
         }
@@ -138,12 +153,10 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
                 Serial.printf("Name: %s,\n", name.c_str());
                 Serial.printf("RSSI: %d\n", rssi);
             }
-            if (airtag) {
+            if (airtag && airtagNew) {
                 s_airtagCount++;
-                static int tagNum = 0;
-                tagNum++;
                 Serial.println("AirTag found!");
-                Serial.printf("Tag: %d\n", tagNum);
+                Serial.printf("Tag: %d\n", airtagUnique);
                 Serial.printf("MAC Address: %s\n", mac.c_str());
                 Serial.printf("RSSI: %d\n", rssi);
             }
@@ -193,12 +206,10 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
                 Serial.printf("Name: %s,\n", name.c_str());
                 Serial.printf("RSSI: %d\n", rssi);
             }
-            if (airtag) {
+            if (airtag && airtagNew) {
                 s_airtagCount++;
-                static int tagAll = 0;
-                tagAll++;
                 Serial.println("AirTag found!");
-                Serial.printf("Tag: %d\n", tagAll);
+                Serial.printf("Tag: %d\n", airtagUnique);
                 Serial.printf("MAC Address: %s\n", mac.c_str());
                 Serial.printf("RSSI: %d\n", rssi);
             }
