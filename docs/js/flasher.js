@@ -157,12 +157,18 @@ window.flashDevice = async function (manifestPath) {
       return;
     }
 
-    /* 7. Flash */
-    setStatus("Writing flash…");
+    /* 7. Flash.
+     * Honor the manifest's `new_install_prompt_erase`: a full chip erase before
+     * writing is the reliable way to recover a boot-looping / "bricked" vessel,
+     * since it clears any stale bootloader, partition table, or NVS left behind
+     * by an earlier firmware. Defaults to erase when the flag is absent. */
+    const eraseAll = manifest.new_install_prompt_erase !== false;
+    if (eraseAll) log("Full-erase requested — clearing flash before writing.");
+    setStatus(eraseAll ? "Erasing & writing flash…" : "Writing flash…");
     await loader.writeFlash({
       fileArray: [{ data: fwData, address: part.offset }],
       flashSize: "keep",
-      eraseAll: false,
+      eraseAll,
       compress: true,
       reportProgress(_fileIndex, written, total) {
         const pct = Math.round((written / total) * 100);
