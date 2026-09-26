@@ -32,9 +32,12 @@ SKETCH_DIR="build-sketch-s3/HuginnESP"
 
 # XIAO ESP32-S3 has 8 MB flash; default_8MB gives ~3 MB app / 1.5 MB SPIFFS,
 # plenty for Bluedroid BLE + WiFi. USBMode=hwcdc = USB-Serial-JTAG (matches
-# ARDUINO_USB_MODE=1 in the platformio env). CDCOnBoot=cdc keeps Serial on USB.
+# ARDUINO_USB_MODE=1 in the platformio env). CDCOnBoot=default = "USB CDC On
+# Boot: Enabled" (Serial → USB); note the esp32 core inverts this token —
+# CDCOnBoot=cdc means DISABLED, which would drop Serial onto UART0 (GPIO43/44,
+# the GPS pins). PSRAM=opi matches the XIAO S3's octal PSRAM.
 PARTITION="${XIAO_S3_PARTITION:-default_8MB}"
-FQBN="esp32:esp32:XIAO_ESP32S3:PartitionScheme=${PARTITION},USBMode=hwcdc,CDCOnBoot=cdc,PSRAM=opi"
+FQBN="esp32:esp32:XIAO_ESP32S3:PartitionScheme=${PARTITION},USBMode=hwcdc,CDCOnBoot=default,PSRAM=opi"
 
 echo "==> Assembling Arduino sketch at $SKETCH_DIR from src/"
 rm -rf "$SKETCH_DIR"
