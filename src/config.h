@@ -61,6 +61,8 @@
 #ifndef GPS_RX_PIN
 #if HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
 #define GPS_RX_PIN    12
+#elif HUGINN_BOARD_S3 && HUGINN_BOARD_XIAO_S3
+#define GPS_RX_PIN    44   // XIAO ESP32-S3 D7 (Serial1 RX) ← GPS module TX
 #else
 #define GPS_RX_PIN    17
 #endif
@@ -68,6 +70,8 @@
 #ifndef GPS_TX_PIN
 #if HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
 #define GPS_TX_PIN     1
+#elif HUGINN_BOARD_S3 && HUGINN_BOARD_XIAO_S3
+#define GPS_TX_PIN    43   // XIAO ESP32-S3 D6 (Serial1 TX) → GPS RX (often NC)
 #else
 #define GPS_TX_PIN    18
 #endif
