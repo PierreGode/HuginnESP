@@ -49,14 +49,22 @@ cat > "$SKETCH_DIR/HuginnESP.ino" <<'INO'
 // setup() and loop() are defined in src/main.cpp.
 INO
 
+# Headless S3: reuse the S3 chip paths, compile the display out. Use
+# compiler.cpp.extra_flags so the board's own USB-CDC build defines are kept.
+EXTRA_FLAGS="-DHUGINN_BOARD_S3=1 -DHUGINN_BOARD_XIAO_S3=1 -DHUGINN_HAS_DISPLAY=0 -DCORE_DEBUG_LEVEL=3"
+
+# Set XIAO_S3_GPS=1 to enable the L76K GNSS on the D7/D6 UART pads. Pins default
+# to RX=GPIO44 / TX=GPIO43 via config.h (HUGINN_BOARD_XIAO_S3); override with
+# GPS_RX_PIN / GPS_TX_PIN if you wired it elsewhere.
+if [ "${XIAO_S3_GPS:-0}" = "1" ]; then
+  EXTRA_FLAGS="$EXTRA_FLAGS -DHUGINN_HAS_GPS=1"
+  echo "==> GPS enabled (UART1, RX=GPIO44/D7, TX=GPIO43/D6)"
+fi
+
 echo "==> Compiling for $FQBN"
-# Headless S3: reuse the S3 chip paths, compile the display out. GPS pins
-# default to the XIAO S3 D7/D6 UART via config.h (HUGINN_BOARD_XIAO_S3); add
-# -DHUGINN_HAS_GPS=1 below to enable it. Use compiler.cpp.extra_flags so the
-# board's own USB-CDC build defines are preserved.
 arduino-cli compile \
   --fqbn "$FQBN" \
-  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_S3=1 -DHUGINN_BOARD_XIAO_S3=1 -DHUGINN_HAS_DISPLAY=0 -DCORE_DEBUG_LEVEL=3" \
+  --build-property "compiler.cpp.extra_flags=$EXTRA_FLAGS" \
   --export-binaries \
   "$SKETCH_DIR"
 
