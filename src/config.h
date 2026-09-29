@@ -67,7 +67,7 @@
 #endif
 #ifndef GPS_TX_PIN
 #if HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
-#define GPS_TX_PIN     1
+#define GPS_TX_PIN    11
 #else
 #define GPS_TX_PIN    18
 #endif

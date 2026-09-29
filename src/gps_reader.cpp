@@ -16,6 +16,7 @@ static bool              s_hasFix   = false;
 static double            s_lat      = 0.0;
 static double            s_lon      = 0.0;
 static float             s_speedKph = 0.0f;
+static volatile uint32_t s_rmcCount = 0;
 
 static HardwareSerial s_gpsSerial(GPS_UART_NUM);
 
@@ -83,6 +84,7 @@ static void gps_task(void*) {
                     line[pos] = '\0';
                     if (strncmp(line, "$GPRMC", 6) == 0 ||
                         strncmp(line, "$GNRMC", 6) == 0) {
+                        s_rmcCount = s_rmcCount + 1;
                         parseRMC(line);
                     }
                     pos = 0;
@@ -115,6 +117,7 @@ GpsPosition gps_get_position() {
         p.lon       = s_lon;
         p.speed_kph = s_speedKph;
         xSemaphoreGive(s_mutex);
+        p.rmc_count = s_rmcCount;
     }
     return p;
 }

@@ -114,7 +114,7 @@ static void handleCommand(const String& cmd) {
             Serial.printf("{\"gps\":\"fix\",\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.1f,\"speed_mps\":%.2f}\n",
                           gp.lat, gp.lon, gp.speed_kph, gp.speed_kph / 3.6f);
         } else {
-            Serial.println("{\"gps\":\"no_fix\"}");
+            Serial.printf("{\"gps\":\"no_fix\",\"rmc\":%lu}\n", (unsigned long)gp.rmc_count);
         }
 #else
         Serial.println("{\"error\":\"GPS not compiled in\"}");

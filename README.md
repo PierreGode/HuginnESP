@@ -47,8 +47,8 @@ Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6
 | RX (GPS in) | GPIO 18 by default (Waveshare C5/S3/generic) | Leave unconnected if module is receive-only |
 
 For **Seeed XIAO ESP32-C5** builds produced by `scripts/build-xiao.sh`, Soldred GPS defaults are:
-- `GPS_RX_PIN=12`
-- `GPS_TX_PIN=1`
+- `GPS_RX_PIN=12` (D7) ← GPS **TX**
+- `GPS_TX_PIN=11` (D6) → GPS **RX**
 - `GPS_UART_NUM=1`
 
 To use different pins, override in `platformio.ini`:
