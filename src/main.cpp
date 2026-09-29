@@ -6,6 +6,10 @@
 //        Waveshare ESP32-S3-Touch-LCD-4B (N16R8, 4" 480x480 RGB touch)
 //    HUGINN_BOARD_C5 + HUGINN_HAS_DISPLAY=0
 //        Waveshare ESP32-C5-WIFI6-KIT (16MB/8MB PSRAM, dual-band Wi-Fi 6, no display)
+//    HUGINN_BOARD_C5 + HUGINN_BOARD_XIAO_C5
+//        Seeed XIAO ESP32-C5 (8MB flash, headless; built via scripts/build-xiao.sh)
+//    HUGINN_BOARD_C5 + HUGINN_BOARD_C5_WROOM
+//        Any ESP32-C5-WROOM-1 / WROOM-1U board (>=8MB flash, headless)
 //
 //  Scans Wi-Fi & BLE, detects Flipper Zero / AirTag / Skimmer /
 //  Evil-Twin / BLE spam. Outputs over USB serial (115200) in
@@ -63,6 +67,10 @@ void setup() {
     Serial.println("[BOOT] HuginnESP starting...");
 #if HUGINN_BOARD_S3
     Serial.println("[BOOT] Board: ESP32-S3-Touch-LCD-4B (display)");
+#elif HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
+    Serial.println("[BOOT] Board: Seeed XIAO ESP32-C5 (headless, dual-band Wi-Fi 6)");
+#elif HUGINN_BOARD_C5 && HUGINN_BOARD_C5_WROOM
+    Serial.println("[BOOT] Board: ESP32-C5-WROOM-1/1U (headless, dual-band Wi-Fi 6)");
 #elif HUGINN_BOARD_C5
     Serial.println("[BOOT] Board: ESP32-C5-WIFI6-KIT (headless, dual-band Wi-Fi 6)");
 #elif HUGINN_BOARD_GENERIC

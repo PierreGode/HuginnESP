@@ -11,7 +11,10 @@
 
 // Boot default. With the mode button, the device comes up wardriving and the
 // button toggles to skimmer-only; without it, keep the original auto-cycle.
-#if HUGINN_HAS_MODE_BUTTON
+// C5 boards always boot wardriving: auto-cycle runs BLE alongside each WiFi
+// scan, and on the C5's single shared 2.4/5 GHz radio those scans come back
+// empty (seen on the Seeed XIAO C5, which has no mode button).
+#if HUGINN_HAS_MODE_BUTTON || HUGINN_BOARD_C5
 volatile ScanMode g_currentMode   = MODE_WARDRIVE;
 volatile bool     g_manualOverride = true;
 #else
