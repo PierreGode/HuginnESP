@@ -37,7 +37,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 
 ## GPS wiring (optional)
 
-Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6M, L76, etc.).
+Any NMEA module that outputs RMC sentences (`$GPRMC`, `$GNRMC`, `$BDRMC`, …) at 9600 baud works (GT-U7, NEO-6M, L76K, ATGM336H, etc.).
 
 | GPS pin | ESP32 pin | Notes |
 |---|---|---|

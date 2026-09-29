@@ -30,7 +30,7 @@ static double nmeaToDeg(const char* field, char dir) {
     return result;
 }
 
-// Parse one $GPRMC / $GNRMC sentence. Updates shared state on valid fix.
+// Parse one RMC sentence (any talker ID). Updates shared state on valid fix.
 static void parseRMC(char* sentence) {
     // Strip checksum suffix (*HH).
     char* star = strchr(sentence, '*');
@@ -82,8 +82,10 @@ static void gps_task(void*) {
             if (c == '\n' || c == '\r') {
                 if (pos > 0) {
                     line[pos] = '\0';
-                    if (strncmp(line, "$GPRMC", 6) == 0 ||
-                        strncmp(line, "$GNRMC", 6) == 0) {
+                    // Any talker's RMC: $GPRMC (GPS), $GNRMC (multi-GNSS, e.g.
+                    // ATGM336H default), $BDRMC / $GBRMC (BeiDou-only), $GLRMC ...
+                    if (line[0] == '$' && pos >= 6 &&
+                        strncmp(line + 3, "RMC", 3) == 0) {
                         s_rmcCount = s_rmcCount + 1;
                         parseRMC(line);
                     }
