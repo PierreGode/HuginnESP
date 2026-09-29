@@ -1,17 +1,22 @@
-/* HuginnESP Web Flasher — drives esptool-js v0.6.0 directly.
+/* HuginnESP Web Flasher — drives esptool-js v0.7.0 directly.
  *
  * esp-web-tools is pinned to esptool-js v0.5.x, which lacks the ESP32-C5
  * native-USB (USB-Serial-JTAG) fixes added in esptool-js v0.6.0. The Seeed
  * XIAO ESP32-C5 has no external UART bridge, so it can only be web-flashed
  * over that native USB interface — hence this lightweight flasher built on
- * esptool-js v0.6.0 instead of esp-web-tools.
+ * esptool-js instead of esp-web-tools.
+ *
+ * v0.7.0 is the minimum: ESP32-C5 revision v1.2 silicon (e.g. newer
+ * ESP32-C5-WROOM-1U modules) reports a chip-detect magic value that v0.6.x
+ * doesn't know, so detection fails with "this.chip is null". v0.7.0 adds that
+ * magic and falls back to GET_SECURITY_INFO chip-ID detection.
  */
 
 let _esptool = null;
 
 async function getEsptool() {
   if (_esptool) return _esptool;
-  _esptool = await import("https://unpkg.com/esptool-js@0.6.0/bundle.js");
+  _esptool = await import("https://unpkg.com/esptool-js@0.7.0/bundle.js");
   return _esptool;
 }
 

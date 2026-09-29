@@ -11,8 +11,9 @@ WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning
 | **Waveshare ESP32-S3-Touch-LCD-4B** | ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM) | WiFi 2.4 GHz + BLE 5 | 4" 480×480 RGB touch (GT911) |
 | **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 | **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
+| **Generic ESP32-C5-WROOM-1 / WROOM-1U** | Any WROOM-1/1U module with ≥ 8 MB flash (N8R4 / N8R8 / N16R4 / N16R8, 32 MB third-party boards), chip rev v1.0 or v1.2 | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 
-All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The two C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
+All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
 
 ## Features
 
@@ -66,6 +67,7 @@ Build with one of the GPS-enabled environments:
 ```
 pio run -e esp32s3box-gps
 pio run -e esp32c5-gps
+pio run -e esp32c5-wroom-gps
 pio run -e esp32-gps
 ```
 
@@ -192,16 +194,18 @@ channels 1–14 actively.
 
 ### Option 1 — Web flasher (easiest, no toolchain)
 
-The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It drives [esptool-js](https://github.com/espressif/esptool-js) **v0.6.0** directly (not esp-web-tools) and serves prebuilt merged images for all three supported boards (Waveshare S3, Waveshare C5, and Seeed XIAO C5).
+The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It drives [esptool-js](https://github.com/espressif/esptool-js) **v0.7.0** directly (not esp-web-tools) and serves prebuilt merged images for every supported board (Waveshare S3, Waveshare C5, Seeed XIAO C5, and generic ESP32-C5-WROOM-1 / WROOM-1U).
 
-> **Why not esp-web-tools?** esp-web-tools is pinned to esptool-js v0.5.x, which lacks the ESP32-C5 native-USB (USB-Serial-JTAG) fixes added in esptool-js v0.6.0. The Seeed XIAO ESP32-C5 has **no external UART bridge**, so it can only be web-flashed over that native USB interface. HuginnESP therefore ships a lightweight flasher built on esptool-js v0.6.0 (see [docs/js/flasher.js](docs/js/flasher.js)). The page also includes a built-in **Serial Monitor** for watching the scan stream.
+> **Why not esp-web-tools?** esp-web-tools is pinned to esptool-js v0.5.x, which lacks the ESP32-C5 native-USB (USB-Serial-JTAG) fixes added in esptool-js v0.6.0. The Seeed XIAO ESP32-C5 has **no external UART bridge**, so it can only be web-flashed over that native USB interface. HuginnESP therefore ships a lightweight flasher built on esptool-js (see [docs/js/flasher.js](docs/js/flasher.js)). The page also includes a built-in **Serial Monitor** for watching the scan stream.
+>
+> **ESP32-C5 revision v1.2:** esptool-js **v0.7.0 or newer** is required. Newer C5 silicon (rev v1.2, e.g. recent ESP32-C5-WROOM-1U modules) reports a chip-detect magic value that v0.6.x doesn't recognize, which surfaced as `can't access property "getChipDescription", this.chip is null`.
 
 Requirements:
 - A Chromium-based browser on desktop (Chrome, Edge, or Opera). Web Serial is required and is not available in Firefox or Safari.
 - Page must be served over HTTPS (the GitHub Pages site already is).
 - USB-C cable plugged into the **USB** port of the board (the native USB / USB-Serial-JTAG port — not a separate UART port if your board has one).
 
-Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, or **Seeed XIAO C5**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the two C5 buttons are both ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO) — pick the one matching your physical board.
+Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, **Seeed XIAO C5**, or **C5-WROOM-1 / 1U**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the C5 buttons are all ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO vs 8 MB generic WROOM) — pick the one matching your physical board. For any other ESP32-C5-WROOM-1 or WROOM-1U devkit, use **C5-WROOM-1 / 1U**: its 8 MB layout boots on every WROOM variant. If flashing stalls, hold `BOOT`, tap `RESET`, release `BOOT` and retry.
 
 ### Option 2 — Build from source (PlatformIO)
 
