@@ -207,6 +207,8 @@ Requirements:
 
 Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, **Seeed XIAO C5**, or **C5-WROOM-1 / 1U**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the C5 buttons are all ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO vs 8 MB generic WROOM) — pick the one matching your physical board. For any other ESP32-C5-WROOM-1 or WROOM-1U devkit, use **C5-WROOM-1 / 1U**: its 8 MB layout boots on every WROOM variant. If flashing stalls, hold `BOOT`, tap `RESET`, release `BOOT` and retry.
 
+> **GPS on D6/D7 (e.g. XIAO C5 on a Piglet PCB):** those pads are also the C5's UART0, which the ROM bootloader listens on. While a GPS is streaming NMEA into GPIO12, the flasher stub can fail to start (`Failed to start stub flasher`). Either disconnect the GPS while flashing, or flash with esptool's ROM loader: `esptool --chip esp32c5 --no-stub write-flash 0x0 huginn-xiao-esp32c5.bin`.
+
 ### Option 2 — Build from source (PlatformIO)
 
 Required for development or custom builds. This is a [PlatformIO](https://platformio.org/) project using [pioarduino](https://github.com/pioarduino/platform-espressif32) — Arduino core 3.x / ESP-IDF 5.3 on the S3 env, 5.5 on the C5 env. The platform is downloaded automatically on first build.
