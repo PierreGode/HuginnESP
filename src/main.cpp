@@ -65,7 +65,9 @@ void setup() {
                   HUGINN_FW_VERSION, HUGINN_BOARD_NAME, HUGINN_CAPS);
 
     Serial.println("[BOOT] HuginnESP starting...");
-#if HUGINN_BOARD_S3
+#if HUGINN_BOARD_S3 && HUGINN_BOARD_XIAO_S3
+    Serial.println("[BOOT] Board: XIAO ESP32-S3 (headless, 2.4 GHz)");
+#elif HUGINN_BOARD_S3
     Serial.println("[BOOT] Board: ESP32-S3-Touch-LCD-4B (display)");
 #elif HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
     Serial.println("[BOOT] Board: Seeed XIAO ESP32-C5 (headless, dual-band Wi-Fi 6)");
