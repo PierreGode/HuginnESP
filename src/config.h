@@ -74,6 +74,7 @@
 #endif
 #define GPS_BAUD       9600
 #define GPS_TASK_STACK 4096
+#define GPS_TELEMETRY_MS 1000   // min interval between {"type":"GPS"} position lines (only sent with a fix)
 #endif
 
 // ----- Skimmer suspicious names (defaults; runtime list lives in runtime_config) -----

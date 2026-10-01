@@ -253,6 +253,14 @@ The very first line on every boot is a device announce so a host can tell Huginn
 
 `board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (`display` is S3-only, `zigbee` appears only on 802.15.4-capable C5 builds, `gps` appears only in GPS-enabled builds). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
 
+**GPS telemetry (GPS builds).** While the receiver holds a fix, the firmware emits one position line per second, independent of any scan results:
+
+```json
+{"type":"GPS","lat":59.3293000,"lon":18.0686000,"speed_kmh":12.3,"sats":9,"hdop":0.9,"alt":31.2}
+```
+
+It has no `mac`, so hosts treat it as position-only telemetry — Ragnar feeds it to its GPS manager as an external fix, which keeps its position (and the records from its own adapters) current even with no local USB GPS and when no networks are being seen. `sats` / `hdop` / `alt` come from GGA and are omitted when the receiver doesn't report them. Nothing is sent without a fix. The `gps` command reports `{"gps":"no_fix","rmc":N}` before a fix, where `rmc` counts RMC sentences received (0 = no NMEA arriving — check wiring/power).
+
 ### Zigbee / IEEE 802.15.4 (ESP32-C5)
 
 The ESP32-C5's radio also speaks IEEE 802.15.4, so C5 builds add an 802.15.4
