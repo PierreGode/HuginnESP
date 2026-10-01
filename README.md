@@ -37,7 +37,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 
 ## GPS wiring (optional)
 
-Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6M, L76, etc.).
+Any NMEA module that outputs RMC sentences (`$GPRMC`, `$GNRMC`, `$BDRMC`, …) at 9600 baud works (GT-U7, NEO-6M, L76K, ATGM336H, etc.).
 
 | GPS pin | ESP32 pin | Notes |
 |---|---|---|
@@ -47,8 +47,8 @@ Any NMEA module that outputs `$GPRMC` sentences at 9600 baud works (GT-U7, NEO-6
 | RX (GPS in) | GPIO 18 by default (Waveshare C5/S3/generic) | Leave unconnected if module is receive-only |
 
 For **Seeed XIAO ESP32-C5** builds produced by `scripts/build-xiao.sh`, Soldred GPS defaults are:
-- `GPS_RX_PIN=12`
-- `GPS_TX_PIN=1`
+- `GPS_RX_PIN=12` (D7) ← GPS **TX**
+- `GPS_TX_PIN=11` (D6) → GPS **RX**
 - `GPS_UART_NUM=1`
 
 To use different pins, override in `platformio.ini`:
@@ -207,6 +207,8 @@ Requirements:
 
 Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, **Seeed XIAO C5**, or **C5-WROOM-1 / 1U**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the C5 buttons are all ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO vs 8 MB generic WROOM) — pick the one matching your physical board. For any other ESP32-C5-WROOM-1 or WROOM-1U devkit, use **C5-WROOM-1 / 1U**: its 8 MB layout boots on every WROOM variant. If flashing stalls, hold `BOOT`, tap `RESET`, release `BOOT` and retry.
 
+> **GPS on D6/D7 (e.g. XIAO C5 on a Piglet PCB):** those pads are also the C5's UART0, which the ROM bootloader listens on. While a GPS is streaming NMEA into GPIO12, the flasher stub can fail to start (`Failed to start stub flasher`). Either disconnect the GPS while flashing, or flash with esptool's ROM loader: `esptool --chip esp32c5 --no-stub write-flash 0x0 huginn-xiao-esp32c5.bin`.
+
 ### Option 2 — Build from source (PlatformIO)
 
 Required for development or custom builds. This is a [PlatformIO](https://platformio.org/) project using [pioarduino](https://github.com/pioarduino/platform-espressif32) — Arduino core 3.x / ESP-IDF 5.3 on the S3 env, 5.5 on the C5 env. The platform is downloaded automatically on first build.
@@ -250,6 +252,14 @@ The very first line on every boot is a device announce so a host can tell Huginn
 ```
 
 `board` is `esp32-s3` or `esp32-c5`; `caps` lists the compiled-in capabilities (`display` is S3-only, `zigbee` appears only on 802.15.4-capable C5 builds, `gps` appears only in GPS-enabled builds). Hosts that connect to an already-running device can probe with `status` to confirm they're talking to HuginnESP, since no other firmware will respond with the same JSON shape.
+
+**GPS telemetry (GPS builds).** While the receiver holds a fix, the firmware emits one position line per second, independent of any scan results:
+
+```json
+{"type":"GPS","lat":59.3293000,"lon":18.0686000,"speed_kmh":12.3,"sats":9,"hdop":0.9,"alt":31.2}
+```
+
+It has no `mac`, so hosts treat it as position-only telemetry — Ragnar feeds it to its GPS manager as an external fix, which keeps its position (and the records from its own adapters) current even with no local USB GPS and when no networks are being seen. `sats` / `hdop` / `alt` come from GGA and are omitted when the receiver doesn't report them. Nothing is sent without a fix. The `gps` command reports `{"gps":"no_fix","rmc":N}` before a fix, where `rmc` counts RMC sentences received (0 = no NMEA arriving — check wiring/power).
 
 ### Zigbee / IEEE 802.15.4 (ESP32-C5)
 

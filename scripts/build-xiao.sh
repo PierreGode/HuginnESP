@@ -52,14 +52,14 @@ INO
 
 echo "==> Compiling for $FQBN"
 # Headless XIAO C5 build: keep C5 behavior while tagging XIAO-specific pin
-# defaults for optional Soldred GPS on UART1 (RX=GPIO12, TX=GPIO1).
+# defaults for optional Soldred GPS on UART1 (RX=GPIO12/D7, TX=GPIO11/D6 — the XIAO hardware UART pads).
 # Use compiler.cpp.extra_flags (empty by default) — NOT build.extra_flags,
 # which carries the board's USB-CDC defines. BOARD_HAS_PSRAM is intentionally
 # left unset: the headless scanner fits in internal SRAM, so the board's
 # 8 MB PSRAM is simply left uninitialised (not required by this firmware).
 arduino-cli compile \
   --fqbn "$FQBN" \
-  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_BOARD_XIAO_C5=1 -DHUGINN_HAS_DISPLAY=0 -DHUGINN_HAS_ZIGBEE=1 -DHUGINN_HAS_GPS=1 -DGPS_UART_NUM=1 -DGPS_RX_PIN=12 -DGPS_TX_PIN=1 -DCORE_DEBUG_LEVEL=3" \
+  --build-property "compiler.cpp.extra_flags=-DHUGINN_BOARD_C5=1 -DHUGINN_BOARD_XIAO_C5=1 -DHUGINN_HAS_DISPLAY=0 -DHUGINN_HAS_ZIGBEE=1 -DHUGINN_HAS_GPS=1 -DGPS_UART_NUM=1 -DGPS_RX_PIN=12 -DGPS_TX_PIN=11 -DCORE_DEBUG_LEVEL=3" \
   --export-binaries \
   "$SKETCH_DIR"
 

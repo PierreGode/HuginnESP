@@ -16,6 +16,13 @@ static bool              s_hasFix   = false;
 static double            s_lat      = 0.0;
 static double            s_lon      = 0.0;
 static float             s_speedKph = 0.0f;
+static volatile uint32_t s_rmcCount = 0;
+// From GGA — only used for the 1 Hz position telemetry line.
+static int               s_sats     = -1;
+static float             s_hdop     = -1.0f;
+static float             s_alt      = 0.0f;
+static bool              s_hasAlt   = false;
+static uint32_t          s_lastTelemMs = 0;
 
 static HardwareSerial s_gpsSerial(GPS_UART_NUM);
 
@@ -29,7 +36,7 @@ static double nmeaToDeg(const char* field, char dir) {
     return result;
 }
 
-// Parse one $GPRMC / $GNRMC sentence. Updates shared state on valid fix.
+// Parse one RMC sentence (any talker ID). Updates shared state on valid fix.
 static void parseRMC(char* sentence) {
     // Strip checksum suffix (*HH).
     char* star = strchr(sentence, '*');
@@ -71,6 +78,51 @@ static void parseRMC(char* sentence) {
     }
 }
 
+// Split an NMEA sentence in place on ',' keeping empty fields (strtok would
+// collapse them and shift every later field). Returns the field count.
+static int splitFields(char* s, char** f, int maxf) {
+    int n = 0;
+    f[n++] = s;
+    for (char* p = s; *p && n < maxf; p++) {
+        if (*p == ',') { *p = '\0'; f[n++] = p + 1; }
+    }
+    return n;
+}
+
+// Parse one GGA sentence (any talker) for satellites / HDOP / altitude.
+static void parseGGA(char* sentence) {
+    char* star = strchr(sentence, '*');
+    if (star) *star = '\0';
+    char* f[15];
+    // type(0) time(1) lat(2) NS(3) lon(4) EW(5) quality(6) sats(7) hdop(8) alt(9)
+    if (splitFields(sentence, f, 15) < 10) return;
+    s_sats   = f[7][0] ? atoi(f[7]) : -1;
+    s_hdop   = f[8][0] ? (float)atof(f[8]) : -1.0f;
+    s_hasAlt = f[9][0] != '\0';
+    if (s_hasAlt) s_alt = (float)atof(f[9]);
+}
+
+// One compact position line per second while a fix is held, e.g.
+//   {"type":"GPS","lat":59.3293000,"lon":18.0686000,"speed_kmh":12.3,"sats":9,"hdop":0.9,"alt":31.2}
+// Carries no "mac", so hosts treat it as position-only telemetry (Ragnar feeds
+// it to its GPS manager as an external fix). Nothing is sent without a fix.
+static void emitTelemetry() {
+    uint32_t now = millis();
+    if (now - s_lastTelemMs < GPS_TELEMETRY_MS) return;
+    GpsPosition p = gps_get_position();
+    if (!p.fix) return;
+    s_lastTelemMs = now;
+    char buf[192];
+    int n = snprintf(buf, sizeof(buf),
+                     "{\"type\":\"GPS\",\"lat\":%.7f,\"lon\":%.7f,\"speed_kmh\":%.1f",
+                     p.lat, p.lon, p.speed_kph);
+    if (s_sats >= 0)    n += snprintf(buf + n, sizeof(buf) - n, ",\"sats\":%d", s_sats);
+    if (s_hdop >= 0.0f) n += snprintf(buf + n, sizeof(buf) - n, ",\"hdop\":%.1f", s_hdop);
+    if (s_hasAlt)       n += snprintf(buf + n, sizeof(buf) - n, ",\"alt\":%.1f", s_alt);
+    snprintf(buf + n, sizeof(buf) - n, "}");
+    Serial.println(buf);
+}
+
 static void gps_task(void*) {
     char line[128];
     int  pos = 0;
@@ -81,9 +133,16 @@ static void gps_task(void*) {
             if (c == '\n' || c == '\r') {
                 if (pos > 0) {
                     line[pos] = '\0';
-                    if (strncmp(line, "$GPRMC", 6) == 0 ||
-                        strncmp(line, "$GNRMC", 6) == 0) {
+                    // Any talker's RMC: $GPRMC (GPS), $GNRMC (multi-GNSS, e.g.
+                    // ATGM336H default), $BDRMC / $GBRMC (BeiDou-only), $GLRMC ...
+                    if (line[0] == '$' && pos >= 6 &&
+                        strncmp(line + 3, "RMC", 3) == 0) {
+                        s_rmcCount = s_rmcCount + 1;
                         parseRMC(line);
+                        emitTelemetry();
+                    } else if (line[0] == '$' && pos >= 6 &&
+                               strncmp(line + 3, "GGA", 3) == 0) {
+                        parseGGA(line);
                     }
                     pos = 0;
                 }
@@ -115,6 +174,7 @@ GpsPosition gps_get_position() {
         p.lon       = s_lon;
         p.speed_kph = s_speedKph;
         xSemaphoreGive(s_mutex);
+        p.rmc_count = s_rmcCount;
     }
     return p;
 }

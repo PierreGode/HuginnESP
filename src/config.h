@@ -67,13 +67,14 @@
 #endif
 #ifndef GPS_TX_PIN
 #if HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
-#define GPS_TX_PIN     1
+#define GPS_TX_PIN    11
 #else
 #define GPS_TX_PIN    18
 #endif
 #endif
 #define GPS_BAUD       9600
 #define GPS_TASK_STACK 4096
+#define GPS_TELEMETRY_MS 1000   // min interval between {"type":"GPS"} position lines (only sent with a fix)
 #endif
 
 // ----- Skimmer suspicious names (defaults; runtime list lives in runtime_config) -----
