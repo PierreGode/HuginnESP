@@ -346,7 +346,13 @@ In the default auto-cycle each WiFi scan runs for `wifi_scan_duration_ms` (8 s b
 | WiFi (`wardrive_wifi_ms`) | 8000 ms | A weighted per-channel sweep, capped at this value. High-traffic channels (2.4 GHz 1/6/11, plus the 5 GHz channels on the C5) are visited first and repeated, then the rest are swept once. On the C5 the scan type is chosen per channel (active for 2.4 GHz + non-DFS 5 GHz, passive for DFS) so 5 GHz is captured in any region — see [Dual-band WiFi scanning (C5)](#dual-band-wifi-scanning-c5). The S3's 2.4 GHz list finishes well inside the cap (~3–4 s); the C5's longer dual-band list can use the full window. WiFi is de-duplicated **within** a sweep (the channel list revisits 1/6/11 and the 5 GHz channels), but each AP is re-emitted **once per cycle** with a fresh GPS fix — so a host that connects mid-session still receives every AP, and a moving capture gets repeated GPS-tagged sightings for triangulation |
 | BLE all (`wardrive_ble_ms`) | 1500 ms | Covers all 3 BLE advertising channels with margin; Flipper / AirTag / skimmer detections fire passively from the same stream |
 
-The WiFi phase revisits the busy channels frequently while still covering the whole band, so a moving capture catches in-range APs several times per pass. Lower `wardrive_wifi_ms` (min 1000 ms) for a faster loop with shallower per-channel coverage. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
+The WiFi phase revisits the busy channels frequently while still covering the whole band, so a moving capture catches in-range APs several times per pass. Lower `wardrive_wifi_ms` (min 1000 ms) for a faster loop with shallower per-channel coverage. **Scan timing (calibrated on a Seeed XIAO ESP32-C5).** The per-channel dwell defaults (active 25–90 ms, passive DFS 105 ms) come from about 70 minutes of measurements with 16 stable APs, set against four interleaved baselines at the old 30–120 / 120 ms values. One full wardrive sweep dropped from ~6.2 s to ~5.3 s (−13%) with per-sweep recall within the baseline's own variation and no stable AP missed:
+
+- **Active probes:** below ~70 ms, weak 2.4 GHz APs on channels visited only once per sweep (3, 5, 11) start dropping out. At 50 ms or less they clearly go missing.
+- **Passive DFS listen:** below the ~102 ms beacon interval, DFS APs go missing (70 ms lost one in a third of sweeps).
+- **BLE phase:** shortening it below 1.5 s cost 15–35% of BLE devices per phase, so it stays at 1.5 s.
+
+All three dwell values are runtime-tunable (`set wifi_active_max_ms …`) for other boards or environments. Pineapple/evil-twin detection is skipped in wardrive mode because it relies on comparing scans over time; run `stop` and then `pineap` when you want it.
 
 ### Runtime configuration
 
@@ -364,6 +370,9 @@ get all               # dump all knobs
 | `ble_spam_threshold` | uint | 1..10000 | Adverts from one MAC within the spam window before a `BLE Spam detected` alert fires |
 | `wardrive_wifi_ms` | uint | 1000..30000 | Ceiling on the per-channel WiFi sweep in `wardrive` mode (default 8000) |
 | `wardrive_ble_ms` | uint | 500..30000 | BLE slot length in `wardrive` mode (default 1500 — covers all 3 ad channels with margin) |
+| `wifi_active_min_ms` | uint | 10..1500 | Minimum dwell per actively probed channel (2.4 GHz, 5 GHz 36–48 / 149–165) (default 25) |
+| `wifi_active_max_ms` | uint | 10..1500 | Maximum dwell per actively probed channel (default 90) |
+| `wifi_passive_ms` | uint | 10..1500 | Listen time per passive DFS channel (52–144); keep it above the ~102 ms beacon interval (default 105) |
 | `pineapple_every_n` | uint | 0..1000 | Run periodic pineapple check every N WiFi scans (`0` disables periodic checks; manual `pineap` still works) |
 | `skimmer_names` | csv | — | Comma-separated BLE device names treated as suspicious (case-insensitive). Replaces the list, doesn't append |
 

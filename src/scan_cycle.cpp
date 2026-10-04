@@ -128,7 +128,12 @@ void scan_cycle_task(void* param) {
                 // 5 GHz channels are scanned passively (listen for a beacon),
                 // which dwells ~120 ms — give them a wider cap than the fast
                 // active 2.4 GHz probes so the scan finishes before we move on.
-                uint32_t chBudget = (ch >= 36) ? 300 : 200;
+                // Cap = configured dwell + scan start/stop headroom; at the
+                // default dwell this is the original 200 ms (2.4 GHz) / 300 ms
+                // (5 GHz, which also covers the passive DFS listen).
+                const bool dfs = (ch >= 52 && ch <= 144);
+                uint32_t chBudget = (dfs ? g_wifiPassiveMs : g_wifiActiveMaxMs)
+                                    + ((ch >= 36) ? 180 : 80);
                 while (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
                     if ((millis() - chStart) > chBudget
                         || (millis() - phaseStart) >= g_wardriveWifiMs) {
