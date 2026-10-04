@@ -120,7 +120,11 @@ static void wifi_scanner_start_internal(uint8_t channel) {
     s_networks.clear();
 
     wifi_scan_config_t cfg = {};
-    cfg.show_hidden = false;
+    // Report hidden-SSID networks too (empty SSID): they are real APs that
+    // WiGLE/WDGWars count, and Piglet on the same XIAO C5 found 5 hidden
+    // BSSIDs here that Huginn never reported. The evil-twin checks below
+    // already skip empty SSIDs, so this can't raise false Pineapple alerts.
+    cfg.show_hidden = true;
     cfg.channel     = channel;
 
     // Scan type per channel — chosen so one build works in both regions without
