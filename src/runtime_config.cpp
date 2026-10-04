@@ -7,6 +7,9 @@ volatile uint32_t g_bleSpamThreshold   = BLE_SPAM_THRESHOLD;
 volatile uint32_t g_wardriveWifiMs     = WARDRIVE_WIFI_DURATION_MS;
 volatile uint32_t g_wardriveBleMs      = WARDRIVE_BLE_DURATION_MS;
 volatile uint32_t g_pineappleEveryN    = PINEAPPLE_EVERY_N_DEFAULT;
+volatile uint32_t g_wifiActiveMinMs    = WIFI_ACTIVE_MIN_MS;
+volatile uint32_t g_wifiActiveMaxMs    = WIFI_ACTIVE_MAX_MS;
+volatile uint32_t g_wifiPassiveMs      = WIFI_PASSIVE_MS;
 
 static SemaphoreHandle_t  s_skimmerMutex = nullptr;
 static std::vector<String> s_skimmerNames;
@@ -126,6 +129,18 @@ static bool handleSet(const String& key, const String& value) {
         printOkUint(key.c_str(), v);
         return true;
     }
+    if (key == "wifi_active_min_ms" || key == "wifi_active_max_ms" || key == "wifi_passive_ms") {
+        uint32_t v;
+        if (!parseUint(value, v) || v < 10 || v > 1500) {
+            printErr("bad value (range 10..1500)");
+            return true;
+        }
+        if (key == "wifi_active_min_ms")      g_wifiActiveMinMs = v;
+        else if (key == "wifi_active_max_ms") g_wifiActiveMaxMs = v;
+        else                                  g_wifiPassiveMs   = v;
+        printOkUint(key.c_str(), v);
+        return true;
+    }
     if (key == "pineapple_every_n") {
         uint32_t v;
         if (!parseUint(value, v) || v > 1000) {
@@ -152,12 +167,18 @@ static bool handleGet(const String& key) {
     if (key == "wardrive_ble_ms")       { printOkUint(key.c_str(), g_wardriveBleMs);      return true; }
     if (key == "pineapple_every_n")     { printOkUint(key.c_str(), g_pineappleEveryN);    return true; }
     if (key == "skimmer_names")         { printOkStr (key.c_str(), getSkimmerNamesCsv()); return true; }
+    if (key == "wifi_active_min_ms")    { printOkUint(key.c_str(), g_wifiActiveMinMs);    return true; }
+    if (key == "wifi_active_max_ms")    { printOkUint(key.c_str(), g_wifiActiveMaxMs);    return true; }
+    if (key == "wifi_passive_ms")       { printOkUint(key.c_str(), g_wifiPassiveMs);      return true; }
     if (key == "all") {
         printOkUint("wifi_scan_duration_ms", g_wifiScanDurationMs);
         printOkUint("ble_spam_threshold",    g_bleSpamThreshold);
         printOkUint("wardrive_wifi_ms",      g_wardriveWifiMs);
         printOkUint("wardrive_ble_ms",       g_wardriveBleMs);
         printOkUint("pineapple_every_n",     g_pineappleEveryN);
+        printOkUint("wifi_active_min_ms",    g_wifiActiveMinMs);
+        printOkUint("wifi_active_max_ms",    g_wifiActiveMaxMs);
+        printOkUint("wifi_passive_ms",       g_wifiPassiveMs);
         printOkStr ("skimmer_names",         getSkimmerNamesCsv());
         return true;
     }

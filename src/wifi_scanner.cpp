@@ -120,7 +120,11 @@ static void wifi_scanner_start_internal(uint8_t channel) {
     s_networks.clear();
 
     wifi_scan_config_t cfg = {};
-    cfg.show_hidden = false;
+    // Report hidden-SSID networks too (empty SSID): they are real APs that
+    // WiGLE/WDGWars count, and Piglet on the same XIAO C5 found 5 hidden
+    // BSSIDs here that Huginn never reported. The evil-twin checks below
+    // already skip empty SSIDs, so this can't raise false Pineapple alerts.
+    cfg.show_hidden = true;
     cfg.channel     = channel;
 
     // Scan type per channel — chosen so one build works in both regions without
@@ -137,11 +141,11 @@ static void wifi_scanner_start_internal(uint8_t channel) {
     const bool isDfs = (channel >= 52 && channel <= 144);
     if (isDfs) {
         cfg.scan_type         = WIFI_SCAN_TYPE_PASSIVE;
-        cfg.scan_time.passive = 120;   // ms dwell, > one beacon interval
+        cfg.scan_time.passive = g_wifiPassiveMs;   // > one ~102 ms beacon interval
     } else {
         cfg.scan_type            = WIFI_SCAN_TYPE_ACTIVE;
-        cfg.scan_time.active.min = 30;
-        cfg.scan_time.active.max = 120;
+        cfg.scan_time.active.min = g_wifiActiveMinMs;
+        cfg.scan_time.active.max = g_wifiActiveMaxMs;
     }
 
     esp_err_t err = esp_wifi_scan_start(&cfg, false);

@@ -20,6 +20,11 @@ extern volatile uint32_t g_bleSpamThreshold;
 extern volatile uint32_t g_wardriveWifiMs;
 extern volatile uint32_t g_wardriveBleMs;
 extern volatile uint32_t g_pineappleEveryN;
+// Per-channel WiFi scan timing (ms). Defaults are the values the firmware
+// shipped with; runtime-settable so they can be tuned on real hardware.
+extern volatile uint32_t g_wifiActiveMinMs;   // active probe: min dwell
+extern volatile uint32_t g_wifiActiveMaxMs;   // active probe: max dwell
+extern volatile uint32_t g_wifiPassiveMs;     // passive (DFS) listen per channel
 
 bool   isSkimmerName(const String& name);
 String getSkimmerNamesCsv();

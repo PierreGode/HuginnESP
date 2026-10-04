@@ -30,6 +30,22 @@
 #define WARDRIVE_WIFI_DURATION_MS 8000
 #define WARDRIVE_BLE_DURATION_MS  1500
 
+// Per-channel WiFi scan dwell (runtime: set wifi_active_min_ms / _max_ms /
+// wifi_passive_ms). Passive applies to the DFS 5 GHz channels 52-144.
+// Calibrated on a Seeed XIAO ESP32-C5 (2026-10-04, 18 APs / 16 stable, ~70 min
+// of sweeps against 4 interleaved baselines at 30/120/120):
+//   active max 120 -> 90 ms : no measurable loss; 70 starts dropping weak
+//                             2.4 GHz APs on single-visit channels, <=50 loses
+//                             them clearly.
+//   passive 120 -> 105 ms   : no loss; 70 ms (below the ~102 ms beacon
+//                             interval) lost the DFS AP in 1 of 3 sweeps.
+// Net: sweep 6.2 s -> 5.3 s (-13%), per-sweep recall within baseline noise,
+// 0 stable APs missed. BLE phase left at 1.5 s: 1000/700/500 ms cost 15/27/35%
+// of BLE devices per phase.
+#define WIFI_ACTIVE_MIN_MS   25
+#define WIFI_ACTIVE_MAX_MS   90
+#define WIFI_PASSIVE_MS     105
+
 // ----- BLE parameters -----
 #define BLE_SCAN_WINDOW_MS   8000
 #define BLE_SPAM_THRESHOLD     20   // advertisements from one MAC within window
