@@ -1,0 +1,10 @@
+{
+  "name": "HuginnESP (LilyGO T-Dongle-C5 LCD)",
+  "version": "1.0",
+  "home_assistant_domain": "huginnesp",
+  "new_install_prompt_erase": true,
+  "builds": [{
+    "chipFamily": "ESP32-C5",
+    "parts": [{"path": "firmware/huginn-lilygo-tdongle-c5.bin", "offset": 0}]
+  }]
+}

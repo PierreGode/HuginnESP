@@ -1,6 +1,6 @@
 #include "config.h"
 
-#if HUGINN_HAS_DISPLAY
+#if HUGINN_HAS_DISPLAY && !HUGINN_BOARD_TDONGLE_C5
 
 #include "display_manager.h"
 #include "serial_cmd.h"

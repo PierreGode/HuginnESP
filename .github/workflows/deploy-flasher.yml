@@ -48,6 +48,9 @@ jobs:
       - name: Build firmware (ESP32-C5-WROOM-1 / WROOM-1U)
         run: pio run -e esp32c5-wroom
 
+      - name: Build firmware (LilyGO T-Dongle-C5 LCD)
+        run: pio run -e lilygo-tdongle-c5
+
       # ── Seeed XIAO ESP32-C5 — separate arduino-cli pipeline ──
       # The XIAO_ESP32C5 board definition only exists in the official
       # Espressif esp32 core, so this target is built with arduino-cli
@@ -102,6 +105,17 @@ jobs:
             0xe000   "$BOOT_APP0" \
             0x10000  "$C5_DIR/firmware.bin"
 
+          # ---- LilyGO T-Dongle-C5 N16R8 + LCD merged image ----
+          TDONGLE_DIR=.pio/build/lilygo-tdongle-c5
+          python -m esptool --chip esp32c5 merge_bin \
+            --output site/firmware/huginn-lilygo-tdongle-c5.bin \
+            --flash_mode dio --flash_freq 80m --flash_size 16MB \
+            --target-offset 0x0 \
+            0x2000   "$TDONGLE_DIR/bootloader.bin" \
+            0x8000   "$TDONGLE_DIR/partitions.bin" \
+            0xe000   "$BOOT_APP0" \
+            0x10000  "$TDONGLE_DIR/firmware.bin"
+
           # ---- Generic ESP32-C5-WROOM-1 / WROOM-1U merged image ----
           # 8 MB layout so one image boots on N8/N16 (and 32 MB) modules.
           WROOM_DIR=.pio/build/esp32c5-wroom
@@ -134,7 +148,7 @@ jobs:
           VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
           echo "Version: $VERSION"
 
-          for m in manifest-esp32s3.json manifest-esp32c5.json manifest-esp32c5-wroom.json manifest-xiao-esp32c5.json; do
+          for m in manifest-esp32s3.json manifest-esp32c5.json manifest-esp32c5-wroom.json manifest-xiao-esp32c5.json manifest-lilygo-tdongle-c5.json; do
             jq --arg v "$VERSION" '.version = $v' "site/$m" > "site/$m.tmp"
             mv "site/$m.tmp" "site/$m"
           done

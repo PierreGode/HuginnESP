@@ -13,7 +13,31 @@ WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning
 | **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 | **Generic ESP32-C5-WROOM-1 / WROOM-1U** | Any WROOM-1/1U module with ≥ 8 MB flash (N8R4 / N8R8 / N16R4 / N16R8, 32 MB third-party boards), chip rev v1.0 or v1.2 | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 
-All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
+| **LilyGO T-Dongle-C5** | ESP32-C5HR8 (16 MB flash, 8 MB PSRAM) | Dual-band WiFi 6 + BLE + 802.15.4 | ST7735, 160×80 landscape status display |
+
+All boards run the same firmware behavior. Headless C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`); the T-Dongle-C5 has a compact SPI status display. The C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
+
+### LilyGO T-Dongle-C5 LCD
+
+Build with `pio run -e lilygo-tdongle-c5`, or select **LilyGO T-Dongle C5 LCD**
+in the web flasher once its matching firmware has been deployed. This target is
+for the **C5**, not the similarly named T-Dongle-S3.
+
+The display shows scan mode, unique WiFi/BLE sightings since boot, Zigbee totals,
+Flipper/Find My/suspicious-device counts, uptime, free heap, and the latest alert.
+Counts are detections, not proof that a device is malicious. BOOT long-press
+retains the existing wardrive/skimmer mode toggle. There is no touchscreen.
+
+The board definition and wiring follow [LilyGO's reference project](https://github.com/Xinyuan-LilyGO/T-Dongle-C5):
+SPI SCK 6, MOSI 2, LCD CS 10, DC 3, reset 1, active-low backlight 0,
+BOOT 28, and shared-bus SD CS 23 (deselected). Its APA102 LED is not driven by
+the WS2812 proximity-LED code. SD-card logging is not implemented; battery-pack
+operation shows live session counts, while Ragnar ingestion requires USB serial.
+Zigbee remains a separate serial-command mode, not part of the WiFi/BLE cycle.
+
+Before replacing other firmware, save a full flash backup (including its settings)
+and verify it can be read back. Hardware validation should check display colors,
+orientation, clipping, counts, button operation, USB JSON output, and scan stability.
 
 ## Features
 
@@ -29,7 +53,7 @@ All boards run the same firmware behavior; the C5 builds skip display code (`HUG
 | **Proximity Alert LED** | Optional — onboard RGB LED blinks faster the closer a flagged device gets (RSSI-driven). Colors identify the alert: skimmer = red⇄white, Flipper Zero = blue⇄white. Enabled on C5 builds |
 | **Mode Button** | Optional — long-press the onboard BOOT button to toggle wardrive ⇄ skimmer-only scanning. LED confirms: 3 purple blinks = skimmer, 3 green = wardrive. C5 builds boot into wardrive |
 | **Touch Display** | Live status, touch buttons, alert panel with color coding (S3 only) |
-| **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 only |
+| **Session Tally** | Display-side running totals (unique WiFi BSSIDs, BLE / Flipper / AirTag / skimmer MACs) since power-on; resets on reboot, S3 and T-Dongle-C5 |
 | **Auto Scan Cycle** | Automatic rotation through all scan modes |
 | **GPS tagging** | Optional — when a NMEA GPS module is wired and has a fix, `lat`/`lon` are appended to every `WIFI` JSON line |
 

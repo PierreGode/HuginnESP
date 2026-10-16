@@ -37,7 +37,9 @@ void setup() {
     Serial.begin(SERIAL_BAUD);
     delay(2000);
 
-#if HUGINN_BOARD_S3
+#if HUGINN_BOARD_TDONGLE_C5
+    const char* HUGINN_BOARD_NAME = "lilygo-tdongle-c5";
+#elif HUGINN_BOARD_S3
     const char* HUGINN_BOARD_NAME = "esp32-s3";
 #elif HUGINN_BOARD_C5
     const char* HUGINN_BOARD_NAME = "esp32-c5";
@@ -65,7 +67,9 @@ void setup() {
                   HUGINN_FW_VERSION, HUGINN_BOARD_NAME, HUGINN_CAPS);
 
     Serial.println("[BOOT] HuginnESP starting...");
-#if HUGINN_BOARD_S3
+#if HUGINN_BOARD_TDONGLE_C5
+    Serial.println("[BOOT] Board: LilyGO T-Dongle-C5 (160x80 SPI display)");
+#elif HUGINN_BOARD_S3
     Serial.println("[BOOT] Board: ESP32-S3-Touch-LCD-4B (display)");
 #elif HUGINN_BOARD_C5 && HUGINN_BOARD_XIAO_C5
     Serial.println("[BOOT] Board: Seeed XIAO ESP32-C5 (headless, dual-band Wi-Fi 6)");
@@ -126,8 +130,14 @@ void setup() {
     // Pin scan cycle to core 0 (works on dual-core S3 and single-core C5).
     xTaskCreatePinnedToCore(scan_cycle_task, "scan_cycle", CYCLE_TASK_STACK, NULL, 1, NULL, 0);
 #if HUGINN_HAS_DISPLAY
-    // Display rendering on core 1 (S3 only — C5 is single-core and headless).
-    xTaskCreatePinnedToCore(display_task, "display", DISPLAY_TASK_STACK, NULL, 1, NULL, 1);
+    // C5 is single-core; only S3 has a second core for display rendering.
+#if HUGINN_BOARD_C5
+    constexpr int displayCore = 0;
+#else
+    constexpr int displayCore = 1;
+#endif
+    xTaskCreatePinnedToCore(display_task, "display", DISPLAY_TASK_STACK, NULL, 1, NULL,
+                            displayCore);
 #endif
 
     Serial.println("[BOOT] All tasks started — entering main loop");
