@@ -35,20 +35,20 @@
 #include "gps_reader.h"
 #endif
 
-void setup() {
-    Serial.begin(SERIAL_BAUD);
-#if HUGINN_HAS_DISPLAY && HUGINN_BOARD_TDONGLE_C5
-    // Wi-Fi init stalls the whole (single-core) chip for ~0.6 s while the PHY
-    // calibrates, which would freeze the boot animation mid-flight. So on this
-    // board Wi-Fi comes up first, on a still-dark screen, and the display (with
-    // its own render task) starts right after — the splash then plays smoothly
-    // through the serial settle delay and the BLE / Zigbee init below.
-    runtime_config_init();
-    wifi_scanner_init();
-    display_init();
+// Device announce line, e.g.
+//   {"device":"HuginnESP","fw":"1.0","board":"esp32-c5","caps":["wifi","ble"]}
+// Emitted at boot and then every HUGINN_ANNOUNCE_INTERVAL_MS from loop().
+//
+// The repeat matters: a host that attaches to an ALREADY-RUNNING device never
+// sees the boot banner (USB-Serial-JTAG boards are not reset by opening the
+// port). Ragnar then falls back to a `status` probe that races the scan stream
+// and, failing that, labels the device "Piglet". With the announce recurring
+// inside any 3 s window, the host identifies Huginn whenever it connects.
+#ifndef HUGINN_ANNOUNCE_INTERVAL_MS
+#define HUGINN_ANNOUNCE_INTERVAL_MS 2000
 #endif
-    delay(2000);
 
+static void emitAnnounce() {
 #if HUGINN_BOARD_S3
     const char* HUGINN_BOARD_NAME = "esp32-s3";
 #elif HUGINN_BOARD_C5
@@ -71,10 +71,33 @@ void setup() {
 #if HUGINN_HAS_GPS
     strlcat(HUGINN_CAPS, ",\"gps\"", sizeof(HUGINN_CAPS));
 #endif
-    // Device announce — emitted first so the host can distinguish HuginnESP
-    // from other ESP32 firmware sharing the USB bus.
     Serial.printf("{\"device\":\"HuginnESP\",\"fw\":\"%s\",\"board\":\"%s\",\"caps\":[%s]}\n",
                   HUGINN_FW_VERSION, HUGINN_BOARD_NAME, HUGINN_CAPS);
+}
+
+void setup() {
+    Serial.begin(SERIAL_BAUD);
+#if HUGINN_HAS_DISPLAY && HUGINN_BOARD_TDONGLE_C5
+    // Wi-Fi init stalls the whole (single-core) chip for ~0.6 s while the PHY
+    // calibrates, which would freeze the boot animation mid-flight. So on this
+    // board Wi-Fi comes up first, on a still-dark screen, and the display (with
+    // its own render task) starts right after — the splash then plays smoothly
+    // through the serial settle delay and the BLE / Zigbee init below.
+    runtime_config_init();
+    wifi_scanner_init();
+    display_init();
+#endif
+    // Serial settle delay. Keep the announce at ~2 s after reset on every
+    // board (Ragnar reads the boot banner for 3 s): the T-Dongle has already
+    // spent ~1.2 s above, so only wait out the remainder.
+    {
+        const uint32_t up = millis();
+        if (up < 2000) delay(2000 - up);
+    }
+
+    // Device announce — emitted first so the host can distinguish HuginnESP
+    // from other ESP32 firmware sharing the USB bus.
+    emitAnnounce();
 
     Serial.println("[BOOT] HuginnESP starting...");
 #if HUGINN_BOARD_S3
@@ -152,5 +175,11 @@ void setup() {
 
 void loop() {
     serial_cmd_poll();
+
+    static uint32_t lastAnnounce = 0;
+    if (millis() - lastAnnounce >= HUGINN_ANNOUNCE_INTERVAL_MS) {
+        lastAnnounce = millis();
+        emitAnnounce();
+    }
     delay(10);
 }
