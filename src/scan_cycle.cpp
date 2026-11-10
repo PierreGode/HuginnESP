@@ -38,9 +38,52 @@ static const uint8_t kWardriveChannels[] = {
 static const size_t kWardriveChannelsLen =
     sizeof(kWardriveChannels) / sizeof(kWardriveChannels[0]);
 
+// ---- Mode carried across the post-Zigbee restart ----
+// On the single-radio ESP32-C5, once the 802.15.4 radio has been receiving the
+// Wi-Fi PHY stays deaf: scans still "complete" but return nothing, and neither
+// disabling 802.15.4 nor esp_wifi_stop()/start() brings it back (measured on a
+// T-Dongle-C5: 0 APs after every Zigbee -> wardrive switch, BLE unaffected).
+// Only a chip restart recovers it. So when a Wi-Fi mode is requested after a
+// Zigbee sniff, the wanted mode is parked in RTC memory (which survives a
+// software reset) and the chip restarts straight into it.
+#define HUGINN_MODE_CARRY_MAGIC 0x48554731u   // "HUG1"
+static RTC_NOINIT_ATTR uint32_t s_carryMagic;
+static RTC_NOINIT_ATTR uint32_t s_carryMode;
+static bool s_wifiDeaf = false;               // an 802.15.4 sniff has run this boot
+
 void scan_cycle_init() {
     s_running = true;
+    if (s_carryMagic == HUGINN_MODE_CARRY_MAGIC) {
+        s_carryMagic = 0;
+        if (s_carryMode == (uint32_t)MODE_AUTO_CYCLE) {
+            g_currentMode = MODE_AUTO_CYCLE;
+            g_manualOverride = false;
+        } else {
+            g_currentMode = MODE_WARDRIVE;
+            g_manualOverride = true;
+        }
+        Serial.printf("[CYCLE] resumed in %s mode after the post-Zigbee restart\n",
+                      scanModeName(g_currentMode));
+    }
 }
+
+#if HUGINN_HAS_ZIGBEE
+static bool modeNeedsWifi(ScanMode m) {
+    return m == MODE_WARDRIVE || m == MODE_WIFI || m == MODE_PINEAPPLE || m == MODE_AUTO_CYCLE;
+}
+
+static void restartForWifi() {
+    const ScanMode want = (g_currentMode == MODE_AUTO_CYCLE || !g_manualOverride)
+                          ? MODE_AUTO_CYCLE : MODE_WARDRIVE;
+    s_carryMode  = (uint32_t)want;
+    s_carryMagic = HUGINN_MODE_CARRY_MAGIC;
+    Serial.printf("[CYCLE] Wi-Fi is deaf after the 802.15.4 sniff - restarting into %s\n",
+                  scanModeName(want));
+    Serial.flush();
+    vTaskDelay(pdMS_TO_TICKS(700));   // let the mode-switch LED flash / screen notice show
+    ESP.restart();
+}
+#endif
 
 #if HUGINN_HAS_ZIGBEE
 // Sniff 802.15.4 for up to `durationMs`, hopping across the Zigbee channels.
@@ -101,6 +144,13 @@ void scan_cycle_task(void* param) {
     BleMode activeBle = BLE_MODE_OFF;
 
     for (;;) {
+#if HUGINN_HAS_ZIGBEE
+        // A Wi-Fi mode was asked for after a Zigbee sniff: only a restart
+        // brings the Wi-Fi PHY back (see s_wifiDeaf above).
+        if (s_wifiDeaf && (modeNeedsWifi(g_currentMode) || !g_manualOverride)) {
+            restartForWifi();
+        }
+#endif
         // ── Wardrive mode ────────────────────────────────────────────────
         if (g_manualOverride && g_currentMode == MODE_WARDRIVE) {
             if (activeBle != BLE_MODE_OFF) {
@@ -185,6 +235,7 @@ void scan_cycle_task(void* param) {
                 activeBle = BLE_MODE_OFF;
             }
             wifi_scanner_stop();
+            s_wifiDeaf = true;
             zigbee_sniff_phase(ZIGBEE_WARDRIVE_MS, MODE_ZIGBEE);
             continue;
         }

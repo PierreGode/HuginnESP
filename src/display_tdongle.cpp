@@ -191,6 +191,17 @@ void display_note_ble(const char* mac, int rssi,
     xSemaphoreGive(s_mutex);
 }
 
+void display_note_zigbee(const char* key, const char* panid, const char* proto,
+                         int rssi, int channel) {
+    if (!s_mutex || !key) return;
+    char label[20];
+    snprintf(label, sizeof(label), "%s %s", proto ? proto : "802.15.4", panid ? panid : "");
+    const uint32_t h = fnv1a((const uint8_t*)key, strlen(key));
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    td_ui_note_zigbee(millis(), h, label, rssi, channel);
+    xSemaphoreGive(s_mutex);
+}
+
 void display_add_alert(const char* type, const char* mac, int rssi) {
     if (!s_mutex) return;
     char up[12];

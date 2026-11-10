@@ -52,6 +52,9 @@ void td_ui_note_wifi(uint32_t nowMs, uint32_t hash, const char* ssid,
                      int rssi, int channel, TdUiSec sec);
 void td_ui_note_ble(uint32_t nowMs, uint32_t hash, const char* mac,
                     int rssi, uint8_t flags);
+// 802.15.4 device; `label` is shown in the target list (e.g. "thread 0x1A2B").
+void td_ui_note_zigbee(uint32_t nowMs, uint32_t hash, const char* label,
+                       int rssi, int channel);
 
 // Full-screen alert takeover (e.g. "FLIPPER", "PINEAPPLE").
 void td_ui_alert(uint32_t nowMs, const char* type, const char* detail, int rssi);

@@ -14,19 +14,30 @@
 
 static bool s_started = false;
 
-// Toggle between wardrive and skimmer-only. The scan-cycle task owns all
-// scanner start/stop transitions; here we only flip the shared mode globals
-// and flash the confirmation. Skimmer takes the "else" so any non-skimmer mode
-// (wardrive, auto, etc.) switches into skimmer on first press.
+// Step to the next scan mode: wardrive -> skimmer -> Zigbee/Thread -> wardrive
+// (the Zigbee step exists only on boards with an 802.15.4 radio). The
+// scan-cycle task owns all scanner start/stop transitions; here we only flip
+// the shared mode globals and flash the confirmation. Any other mode (auto,
+// etc.) goes to skimmer on the first press, as before.
+// Leaving Zigbee for wardrive restarts the chip (see scan_cycle.cpp): the
+// Wi-Fi radio cannot be recovered any other way after an 802.15.4 sniff.
 static void toggleMode() {
+    const uint8_t b = SKIMMER_LED_BRIGHTNESS;
+    g_manualOverride = true;
     if (g_currentMode == MODE_SKIMMER) {
-        g_manualOverride = true;
-        g_currentMode    = MODE_WARDRIVE;
-        skimmer_led_flash(0, SKIMMER_LED_BRIGHTNESS, 0, 3);                    // green
+#if HUGINN_HAS_ZIGBEE
+        g_currentMode = MODE_ZIGBEE;
+        skimmer_led_flash(b, b / 2, 0, 3);          // amber
+#else
+        g_currentMode = MODE_WARDRIVE;
+        skimmer_led_flash(0, b, 0, 3);              // green
+#endif
+    } else if (g_currentMode == MODE_ZIGBEE) {
+        g_currentMode = MODE_WARDRIVE;
+        skimmer_led_flash(0, b, 0, 3);              // green
     } else {
-        g_manualOverride = true;
-        g_currentMode    = MODE_SKIMMER;
-        skimmer_led_flash(SKIMMER_LED_BRIGHTNESS, 0, SKIMMER_LED_BRIGHTNESS, 3); // purple
+        g_currentMode = MODE_SKIMMER;
+        skimmer_led_flash(b, 0, b, 3);              // purple
     }
 }
 
