@@ -4,6 +4,7 @@
 
 #include "serial_cmd.h"     // ScanMode, g_currentMode, g_manualOverride
 #include "skimmer_led.h"    // confirmation flashes
+#include "display_manager.h" // short-press page flip (no-op without the animated UI)
 
 // Brightness for the confirmation flashes. Mirrors the LED brightness when the
 // LED feature is compiled in; falls back to a sane value otherwise.
@@ -32,9 +33,11 @@ static void toggleMode() {
 static void button_task(void*) {
     pinMode(MODE_BTN_PIN, INPUT_PULLUP);
 
-    bool     wasDown    = false;
-    bool     fired      = false;   // one toggle per hold
-    uint32_t pressStart = 0;
+    bool     wasDown      = false;
+    bool     fired        = false;   // one toggle per hold
+    uint32_t pressStart   = 0;
+    bool     clickPending = false;   // a short click waiting to see if a second follows
+    uint32_t clickAt      = 0;
 
     for (;;) {
         const bool     down = (digitalRead(MODE_BTN_PIN) == LOW); // active-low
@@ -47,6 +50,25 @@ static void button_task(void*) {
         if (down && !fired && (now - pressStart) >= MODE_BTN_LONGPRESS_MS) {
             toggleMode();                  // long-press reached
             fired = true;
+        }
+        if (down && !fired && (now - pressStart) >= MODE_BTN_LONGPRESS_MS / 2) {
+            clickPending = false;          // turning into a long press, not a click
+        }
+        if (!down && wasDown && !fired && (now - pressStart) >= 2 * MODE_BTN_POLL_MS) {
+            // Short press released. Display boards: a second click inside the
+            // window is a double-click (flip the screen 180 deg); otherwise the
+            // single click is acted on once the window has passed.
+            if (clickPending && (now - clickAt) <= MODE_BTN_DOUBLECLICK_MS) {
+                clickPending = false;
+                display_flip();
+            } else {
+                clickPending = true;
+                clickAt = now;
+            }
+        }
+        if (clickPending && !down && (now - clickAt) > MODE_BTN_DOUBLECLICK_MS) {
+            clickPending = false;
+            display_next_page();
         }
         wasDown = down;
 

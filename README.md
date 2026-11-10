@@ -11,9 +11,10 @@ WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning
 | **Waveshare ESP32-S3-Touch-LCD-4B** | ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM) | WiFi 2.4 GHz + BLE 5 | 4" 480×480 RGB touch (GT911) |
 | **Waveshare ESP32-C5-WIFI6-KIT** | ESP32-C5-WROOM-1 N16R4 (16 MB flash, 4 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 | **Seeed XIAO ESP32-C5** | ESP32-C5 (8 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
+| **LilyGO T-Dongle-C5** | ESP32-C5 (16 MB flash, 8 MB PSRAM, RISC-V) | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | 0.96" 160×80 ST7735 IPS — animated UI |
 | **Generic ESP32-C5-WROOM-1 / WROOM-1U** | Any WROOM-1/1U module with ≥ 8 MB flash (N8R4 / N8R8 / N16R4 / N16R8, 32 MB third-party boards), chip rev v1.0 or v1.2 | Dual-band WiFi 6 (2.4 / 5 GHz) + BLE 5 + 802.15.4 (Zigbee) | none (headless) |
 
-All boards run the same firmware behavior; the C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`). The C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
+All boards run the same firmware behavior; the headless C5 builds skip display code (`HUGINN_HAS_DISPLAY=0`), while the T-Dongle-C5 adds its own [animated UI](#t-dongle-c5-display). The C5 boards share the same ESP32-C5 chip but differ in flash size and toolchain — see [Flashing the firmware](#flashing-the-firmware).
 
 ## Features
 
@@ -142,6 +143,25 @@ Tunables (override in `platformio.ini` `build_flags`):
 
 ---
 
+## T-Dongle-C5 display
+
+The `tdongle-c5` build drives the dongle's 160×80 screen at ~30 fps from live scan data. After the boot splash it rotates through four pages every 9 s:
+
+| Page | Shows |
+|---|---|
+| **RADAR** | Rotating sweep with a blip per device in range (gold = WiFi AP, blue = BLE, blinking red = flagged device; distance from centre follows RSSI), plus live WiFi / BLE / omen counters |
+| **SPECTRUM** | Per-channel signal bars with peak-hold for 2.4 GHz (ch 1–13) and 5 GHz, and a scrolling SSID ticker |
+| **TARGETS** | The five strongest APs with channel, RSSI and signal bars (open networks in red) |
+| **HUGINN** | Session totals, threat tally, uptime and free heap beside the raven's eye |
+
+A Flipper Zero, separated AirTag, suspected skimmer or Pineapple takes over the whole screen for a few seconds. **BOOT button:** click = next page, double-click = flip the screen 180° (remembered across reboots), long press = toggle wardrive / skimmer. The onboard APA102 LED doubles as the [proximity alert LED](#proximity-alert-led-c5).
+
+```
+pio run -e tdongle-c5 -t upload
+```
+
+`-DTDONGLE_LCD_ROTATION` in `platformio.ini` only sets the first-boot orientation. The renderer (`src/tdongle_ui.cpp`) is plain C++ and can be previewed on a PC — see the header of `sim/tdongle_ui_sim.cpp`.
+
 ## Dual-band WiFi scanning (C5)
 
 The ESP32-C5 is dual-band (2.4 + 5 GHz), and the firmware is set up so a **single
@@ -194,7 +214,7 @@ channels 1–14 actively.
 
 ### Option 1 — Web flasher (easiest, no toolchain)
 
-The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It drives [esptool-js](https://github.com/espressif/esptool-js) **v0.7.0** directly (not esp-web-tools) and serves prebuilt merged images for every supported board (Waveshare S3, Waveshare C5, Seeed XIAO C5, and generic ESP32-C5-WROOM-1 / WROOM-1U).
+The fastest way to flash a stock build is the browser-based installer at **<https://pierregode.github.io/HuginnESP/>**. It drives [esptool-js](https://github.com/espressif/esptool-js) **v0.7.0** directly (not esp-web-tools) and serves prebuilt merged images for every supported board (Waveshare S3, Waveshare C5, Seeed XIAO C5, generic ESP32-C5-WROOM-1 / WROOM-1U, and LilyGO T-Dongle-C5).
 
 > **Why not esp-web-tools?** esp-web-tools is pinned to esptool-js v0.5.x, which lacks the ESP32-C5 native-USB (USB-Serial-JTAG) fixes added in esptool-js v0.6.0. The Seeed XIAO ESP32-C5 has **no external UART bridge**, so it can only be web-flashed over that native USB interface. HuginnESP therefore ships a lightweight flasher built on esptool-js (see [docs/js/flasher.js](docs/js/flasher.js)). The page also includes a built-in **Serial Monitor** for watching the scan stream.
 >
@@ -205,7 +225,7 @@ Requirements:
 - Page must be served over HTTPS (the GitHub Pages site already is).
 - USB-C cable plugged into the **USB** port of the board (the native USB / USB-Serial-JTAG port — not a separate UART port if your board has one).
 
-Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, **Seeed XIAO C5**, or **C5-WROOM-1 / 1U**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the C5 buttons are all ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO vs 8 MB generic WROOM) — pick the one matching your physical board. For any other ESP32-C5-WROOM-1 or WROOM-1U devkit, use **C5-WROOM-1 / 1U**: its 8 MB layout boots on every WROOM variant. If flashing stalls, hold `BOOT`, tap `RESET`, release `BOOT` and retry.
+Steps: open the page → click the **Bind** button for your board (**Waveshare S3**, **Waveshare C5**, **Seeed XIAO C5**, **C5-WROOM-1 / 1U**, or **LilyGO T-Dongle C5**) → pick the serial port → confirm install. Each button flashes a board-specific merged image; the installer refuses to flash if the connected chip doesn't match the board you picked, so choose the right button. Note the C5 buttons are all ESP32-C5 chips but flash different images (16 MB Waveshare vs 8 MB XIAO vs 8 MB generic WROOM vs the T-Dongle build with its display driver) — pick the one matching your physical board. For any other ESP32-C5-WROOM-1 or WROOM-1U devkit, use **C5-WROOM-1 / 1U**: its 8 MB layout boots on every WROOM variant. If flashing stalls, hold `BOOT`, tap `RESET`, release `BOOT` and retry.
 
 > **GPS on D6/D7 (e.g. XIAO C5 on a Piglet PCB):** those pads are also the C5's UART0, which the ROM bootloader listens on. While a GPS is streaming NMEA into GPIO12, the flasher stub can fail to start (`Failed to start stub flasher`). Either disconnect the GPS while flashing, or flash with esptool's ROM loader: `esptool --chip esp32c5 --no-stub write-flash 0x0 huginn-xiao-esp32c5.bin`.
 
@@ -460,7 +480,10 @@ src/
 ├── runtime_config.h/cpp # `set`/`get` knobs (RAM-only, host-pushed)
 ├── scan_cycle.h/cpp    # Automatic scan rotation
 ├── gps_reader.h/cpp    # NMEA GPS reader — compiled in only with HUGINN_HAS_GPS=1
-└── display_manager.h/cpp # 480×480 touch display UI (S3 only)
+├── display_manager.h/cpp # 480×480 touch display UI (S3 only)
+├── display_tdongle.cpp # T-Dongle-C5 ST7735 driver + render task
+└── tdongle_ui.h/cpp    # T-Dongle-C5 animated UI (portable renderer)
+sim/                    # Host-side simulations (scan cycle, T-Dongle UI preview)
 docs/                   # Web flasher (GitHub Pages site)
 .github/workflows/      # CI: builds firmware and publishes the flasher
 ```
