@@ -98,6 +98,11 @@ int      g_page      = PAGE_RADAR;
 int      g_prevPage  = -1;
 uint32_t g_pageStart = 0;
 bool     g_nextReq   = false;
+bool     g_autoRotate = true;
+bool     g_toastPending = false;     // show the auto-rotate notice from the next frame
+uint32_t g_toastStart = 0;
+bool     g_toastOn    = false;
+const uint32_t TOAST_MS = 1600;
 
 char     g_ticker[400];
 int      g_tickerPx    = 0;
@@ -360,7 +365,8 @@ void drawHeader(uint32_t now, const TdUiStatus& st) {
     // Page dots + page name.
     int dx = W - PAGE_COUNT * 5;
     for (int p = 0; p < PAGE_COUNT; p++) {
-        if (p == g_page) fillRect(dx + p * 5, 3, 3, 3, COL_RUNE);
+        // Current page: gold while auto-rotating, steel blue while held.
+        if (p == g_page) fillRect(dx + p * 5, 3, 3, 3, g_autoRotate ? COL_RUNE : COL_STEEL);
         else             px(dx + p * 5 + 1, 4, COL_AGED);
     }
     textRight(dx - 4, 1, PAGE_NAMES[g_page], COL_ASH);
@@ -969,6 +975,7 @@ void td_ui_init() {
     g_prevPage = -1;
     g_pageStart = 0;
     g_nextReq  = false;
+    g_toastOn = g_toastPending = false;
     g_tickerPx = 0;
 }
 
@@ -1017,6 +1024,15 @@ void td_ui_alert(uint32_t nowMs, const char* type, const char* detail, int rssi)
 
 void td_ui_next_page() {
     g_nextReq = true;
+}
+
+void td_ui_set_auto_rotate(bool enabled, bool announce) {
+    g_autoRotate = enabled;
+    if (announce) g_toastPending = true;
+}
+
+bool td_ui_auto_rotate() {
+    return g_autoRotate;
 }
 
 void td_ui_render(uint16_t* fb, const TdUiStatus& st) {
@@ -1081,7 +1097,7 @@ void td_ui_render(uint16_t* fb, const TdUiStatus& st) {
     }
 
     // ---- Page rotation ----
-    if (g_nextReq || (now - g_pageStart) > PAGE_ROTATE_MS) {
+    if (g_nextReq || (g_autoRotate && (now - g_pageStart) > PAGE_ROTATE_MS)) {
         g_nextReq   = false;
         g_prevPage  = g_page;
         g_page      = (g_page + 1) % PAGE_COUNT;
@@ -1104,4 +1120,22 @@ void td_ui_render(uint16_t* fb, const TdUiStatus& st) {
     }
 
     drawHeader(now, st);
+
+    // Auto-rotate notice: a small plate that drops in over the page.
+    if (g_toastPending) { g_toastPending = false; g_toastOn = true; g_toastStart = now; }
+    if (g_toastOn) {
+        const uint32_t tt = now - g_toastStart;
+        if (tt >= TOAST_MS) {
+            g_toastOn = false;
+        } else {
+            const char* msg = g_autoRotate ? "AUTO-CYCLE ON" : "AUTO-CYCLE OFF";
+            const int w = textW(msg) + 13, h = 17, x = (W - w) / 2;
+            float e = tt < 200 ? easeOut(tt / 200.0f)
+                    : tt > TOAST_MS - 200 ? easeOut((TOAST_MS - tt) / 200.0f) : 1.0f;
+            const int y = 31 - (int)((1.0f - e) * 50);
+            fillRect(x, y, w, h, COL_HEADER);
+            rect(x, y, w, h, g_autoRotate ? COL_RUNE : COL_STEEL);
+            text(x + 7, y + 5, msg, g_autoRotate ? COL_RUNE : COL_STEEL);
+        }
+    }
 }

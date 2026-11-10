@@ -158,7 +158,7 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
 #endif
 #endif
 #define MODE_BTN_LONGPRESS_MS  1000     // hold this long to toggle mode
-#define MODE_BTN_DOUBLECLICK_MS 350     // max gap between the two clicks of a double-click
+#define MODE_BTN_DOUBLECLICK_MS 350     // max gap between clicks of a double / triple click
 #define MODE_BTN_POLL_MS         20     // debounce / sample interval
 #define MODE_BTN_TASK_STACK    2048
 #endif

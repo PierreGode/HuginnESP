@@ -145,7 +145,7 @@ Tunables (override in `platformio.ini` `build_flags`):
 
 ## T-Dongle-C5 display
 
-The `tdongle-c5` build drives the dongle's 160×80 screen at ~30 fps from live scan data. After the boot splash it rotates through four pages every 9 s:
+The `tdongle-c5` build drives the dongle's 160×80 screen at ~30 fps from live scan data. After the boot splash it rotates through four pages every 9 s (triple-click the BOOT button to hold the current page):
 
 | Page | Shows |
 |---|---|
@@ -154,7 +154,7 @@ The `tdongle-c5` build drives the dongle's 160×80 screen at ~30 fps from live s
 | **TARGETS** | The five strongest APs with channel, RSSI and signal bars (open networks in red) |
 | **HUGINN** | Session totals, threat tally, uptime and free heap beside the raven's eye |
 
-A Flipper Zero, separated AirTag, suspected skimmer or Pineapple takes over the whole screen for a few seconds. **BOOT button:** click = next page, double-click = flip the screen 180° (remembered across reboots), long press = toggle wardrive / skimmer. The onboard APA102 LED doubles as the [proximity alert LED](#proximity-alert-led-c5).
+A Flipper Zero, separated AirTag, suspected skimmer or Pineapple takes over the whole screen for a few seconds. **BOOT button:** click = next page, double-click = flip the screen 180°, triple-click = stop / resume the page auto-cycle (both remembered across reboots), long press = toggle wardrive / skimmer. The onboard APA102 LED doubles as the [proximity alert LED](#proximity-alert-led-c5).
 
 ```
 pio run -e tdongle-c5 -t upload

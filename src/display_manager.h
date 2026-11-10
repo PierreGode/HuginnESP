@@ -38,12 +38,17 @@ void display_next_page();
 // Rotate the picture 180 degrees (button double-click). Remembered across boots.
 void display_flip();
 
+// Stop / resume the automatic page rotation (button triple-click). Remembered
+// across boots.
+void display_toggle_auto_cycle();
+
 #else
 
 static inline void display_note_wifi(const uint8_t*, const char*, int, int, const char*) {}
 static inline void display_note_ble(const char*, int, bool, bool, bool) {}
 static inline void display_next_page() {}
 static inline void display_flip() {}
+static inline void display_toggle_auto_cycle() {}
 
 #endif
 

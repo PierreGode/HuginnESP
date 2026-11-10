@@ -36,8 +36,8 @@ static void button_task(void*) {
     bool     wasDown      = false;
     bool     fired        = false;   // one toggle per hold
     uint32_t pressStart   = 0;
-    bool     clickPending = false;   // a short click waiting to see if a second follows
-    uint32_t clickAt      = 0;
+    int      clicks       = 0;       // short clicks collected so far
+    uint32_t clickAt      = 0;       // when the latest one was released
 
     for (;;) {
         const bool     down = (digitalRead(MODE_BTN_PIN) == LOW); // active-low
@@ -52,23 +52,22 @@ static void button_task(void*) {
             fired = true;
         }
         if (down && !fired && (now - pressStart) >= MODE_BTN_LONGPRESS_MS / 2) {
-            clickPending = false;          // turning into a long press, not a click
+            clicks = 0;                    // turning into a long press, not a click
         }
-        if (!down && wasDown && !fired && (now - pressStart) >= 2 * MODE_BTN_POLL_MS) {
-            // Short press released. Display boards: a second click inside the
-            // window is a double-click (flip the screen 180 deg); otherwise the
-            // single click is acted on once the window has passed.
-            if (clickPending && (now - clickAt) <= MODE_BTN_DOUBLECLICK_MS) {
-                clickPending = false;
-                display_flip();
-            } else {
-                clickPending = true;
-                clickAt = now;
-            }
+        if (!down && wasDown && !fired && (now - pressStart) >= 2 * MODE_BTN_POLL_MS
+                && (now - pressStart) < MODE_BTN_LONGPRESS_MS / 2) {
+            clicks++;                      // short press released
+            clickAt = now;
         }
-        if (clickPending && !down && (now - clickAt) > MODE_BTN_DOUBLECLICK_MS) {
-            clickPending = false;
-            display_next_page();
+        // Display boards: act once the multi-click window has passed (or at
+        // once on the third click) — 1 = next page, 2 = flip the screen 180
+        // deg, 3 = stop / resume the page auto-cycle.
+        if (clicks > 0 && !down
+                && (clicks >= 3 || (now - clickAt) > MODE_BTN_DOUBLECLICK_MS)) {
+            if (clicks >= 3)      display_toggle_auto_cycle();
+            else if (clicks == 2) display_flip();
+            else                  display_next_page();
+            clicks = 0;
         }
         wasDown = down;
 

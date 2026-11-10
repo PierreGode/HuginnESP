@@ -59,6 +59,11 @@ void td_ui_alert(uint32_t nowMs, const char* type, const char* detail, int rssi)
 // Advance to the next page now (button short-press).
 void td_ui_next_page();
 
+// Enable / disable the automatic page rotation. With it off the current page
+// stays until td_ui_next_page(). `announce` shows a short on-screen notice.
+void td_ui_set_auto_rotate(bool enabled, bool announce);
+bool td_ui_auto_rotate();
+
 // Render one frame into fb[TD_UI_W * TD_UI_H] (native-endian RGB565).
 void td_ui_render(uint16_t* fb, const TdUiStatus& st);
 
