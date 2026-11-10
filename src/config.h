@@ -52,6 +52,8 @@
 #define BLE_SPAM_WINDOW_MS   5000
 
 // ----- Display -----
+// S3 panel size. The T-Dongle-C5's 160x80 UI has its own constants
+// (tdongle_ui.h) and pin/rotation overrides (display_tdongle.cpp).
 #define SCREEN_WIDTH   480
 #define SCREEN_HEIGHT  480
 
@@ -117,6 +119,18 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
 #define SKIMMER_LED_PIN        LED_BUILTIN
 #endif
 #endif
+// APA102 (two-wire) LED instead of a WS2812 — -DHUGINN_LED_APA102=1.
+#if HUGINN_LED_APA102
+#ifndef APA102_DATA_PIN
+#define APA102_DATA_PIN   5
+#endif
+#ifndef APA102_CLOCK_PIN
+#define APA102_CLOCK_PIN  4
+#endif
+#ifndef APA102_GLOBAL_BRIGHTNESS
+#define APA102_GLOBAL_BRIGHTNESS 8     // 5-bit global current, 0-31
+#endif
+#endif
 #ifndef SKIMMER_LED_BRIGHTNESS
 #define SKIMMER_LED_BRIGHTNESS 40      // 0-255 white level when lit (these LEDs are bright)
 #endif
@@ -144,6 +158,7 @@ static const char* SKIMMER_NAMES_DEFAULT[] = {
 #endif
 #endif
 #define MODE_BTN_LONGPRESS_MS  1000     // hold this long to toggle mode
+#define MODE_BTN_DOUBLECLICK_MS 350     // max gap between the two clicks of a double-click
 #define MODE_BTN_POLL_MS         20     // debounce / sample interval
 #define MODE_BTN_TASK_STACK    2048
 #endif

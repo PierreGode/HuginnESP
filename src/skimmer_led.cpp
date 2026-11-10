@@ -30,8 +30,39 @@ static uint32_t rssiToHalfPeriod(int rssi) {
         (pos * ((long)SKIMMER_LED_SLOW_MS - (long)SKIMMER_LED_FAST_MS)) / span);
 }
 
+// One LED-write primitive for both supported LED types.
+#if HUGINN_LED_APA102
+// APA102 (e.g. LilyGO T-Dongle-C5): two-wire clock + data, bit-banged. One
+// LED, written a few times a second, so speed is irrelevant.
+static void apa102Byte(uint8_t v) {
+    for (int i = 7; i >= 0; i--) {
+        digitalWrite(APA102_DATA_PIN, (v >> i) & 1);
+        digitalWrite(APA102_CLOCK_PIN, HIGH);
+        digitalWrite(APA102_CLOCK_PIN, LOW);
+    }
+}
+static void ledWrite(uint8_t r, uint8_t g, uint8_t b) {
+    for (int i = 0; i < 4; i++) apa102Byte(0x00);            // start frame
+    apa102Byte(0xE0 | (APA102_GLOBAL_BRIGHTNESS & 0x1F));    // LED frame header
+    apa102Byte(b);
+    apa102Byte(g);
+    apa102Byte(r);
+    for (int i = 0; i < 4; i++) apa102Byte(0xFF);            // end frame
+}
+static void ledHwInit() {
+    pinMode(APA102_DATA_PIN, OUTPUT);
+    pinMode(APA102_CLOCK_PIN, OUTPUT);
+    digitalWrite(APA102_CLOCK_PIN, LOW);
+}
+#else
+static inline void ledWrite(uint8_t r, uint8_t g, uint8_t b) {
+    rgbLedWrite(SKIMMER_LED_PIN, r, g, b);
+}
+static inline void ledHwInit() {}
+#endif
+
 static inline void ledOff() {
-    rgbLedWrite(SKIMMER_LED_PIN, 0, 0, 0);
+    ledWrite(0, 0, 0);
 }
 
 // Show one phase of the alternating blink. Phase 0 is the type's signature
@@ -46,7 +77,7 @@ static void ledPhase(bool whitePhase, int type) {
     } else {
         r = b; g = 0; bl = 0;                             // red (skimmer)
     }
-    rgbLedWrite(SKIMMER_LED_PIN, r, g, bl);
+    ledWrite(r, g, bl);
 }
 
 static void skimmer_led_task(void*) {
@@ -60,9 +91,9 @@ static void skimmer_led_task(void*) {
             const uint8_t r = s_flashR, g = s_flashG, b = s_flashB;
             s_flashPending = 0;
             for (int i = 0; i < n; i++) {
-                rgbLedWrite(SKIMMER_LED_PIN, r, g, b);
+                ledWrite(r, g, b);
                 vTaskDelay(pdMS_TO_TICKS(150));
-                rgbLedWrite(SKIMMER_LED_PIN, 0, 0, 0);
+                ledWrite(0, 0, 0);
                 vTaskDelay(pdMS_TO_TICKS(150));
             }
             whitePhase = false;
@@ -90,6 +121,7 @@ static void skimmer_led_task(void*) {
 void skimmer_led_init() {
     if (s_started) return;
     s_started = true;
+    ledHwInit();
     ledOff();
     // Pinned to core 0 so it coexists with the scan cycle on single-core C5.
     xTaskCreatePinnedToCore(skimmer_led_task, "skimmer_led",

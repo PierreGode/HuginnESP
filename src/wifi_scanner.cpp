@@ -1,4 +1,5 @@
 #include "wifi_scanner.h"
+#include "display_manager.h"
 #include "config.h"
 #include "runtime_config.h"
 #if HUGINN_HAS_GPS
@@ -211,6 +212,7 @@ void wifi_scanner_process() {
         net.channel  = r.primary;
         net.security = authModeStr(r.authmode);
         s_networks.push_back(net);
+        display_note_wifi(r.bssid, net.ssid.c_str(), net.rssi, net.channel, net.security.c_str());
 
         bool emitNow = true;
         if (s_dedupEnabled) {
@@ -329,6 +331,7 @@ void wifi_scanner_check_pineapple() {
             for (size_t i = 0; i < pair.second.size(); i++) {
                 Serial.printf("Pineapple detected: %s\n", pair.first.c_str());
                 Serial.printf("BSSID: %s\n", pair.second[i].c_str());
+                display_add_alert("pineapple", pair.second[i].c_str(), 0);
                 for (const auto& net : s_networks) {
                     if (net.bssid == pair.second[i]) {
                         Serial.printf("Channel: %d\n", net.channel);
@@ -367,6 +370,7 @@ void wifi_scanner_check_pineapple() {
         Serial.printf("Pineapple detected: SSID pool (%d SSIDs)\n",
                       (int)pair.second.size());
         Serial.printf("BSSID: %s\n", pair.first.c_str());
+        display_add_alert("pineapple", pair.first.c_str(), 0);
         Serial.printf("Channel: %d\n", channel);
         Serial.printf("Security: %s\n", security.c_str());
         String sample;
@@ -392,6 +396,7 @@ void wifi_scanner_check_pineapple() {
             Serial.printf("Pineapple detected: %s (management AP)\n",
                           net.ssid.c_str());
             Serial.printf("BSSID: %s\n", net.bssid.c_str());
+            display_add_alert("pineapple", net.bssid.c_str(), net.rssi);
             Serial.printf("Channel: %d\n", net.channel);
             Serial.printf("Security: %s\n", net.security.c_str());
         }
