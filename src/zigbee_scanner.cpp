@@ -3,6 +3,7 @@
 #if HUGINN_HAS_ZIGBEE
 
 #include "config.h"
+#include "display_manager.h"
 #if HUGINN_HAS_GPS
 #include "gps_reader.h"
 #endif
@@ -65,6 +66,9 @@ static void emitDevice(const String& key, const String& panidStr,
                        bool haveExt, const String& extStr, uint16_t shortAddr,
                        bool haveShort, uint8_t ftype, int rssi, int lqi,
                        const char* proto) {
+    // Feed the on-device UI on every frame (no-op without the animated display).
+    display_note_zigbee(key.c_str(), panidStr.c_str(), proto, rssi, (int)s_channel);
+
     bool isNew = false;
     if (s_mutex && xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {
         if (s_phaseSeen.find(key) == s_phaseSeen.end()) {

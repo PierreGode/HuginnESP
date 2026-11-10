@@ -115,19 +115,29 @@ environment's `build_flags`.
 
 ## Mode button (C5)
 
-On C5 builds the onboard **BOOT** button toggles the scan mode with a
+On C5 builds the onboard **BOOT** button steps through the scan modes with a
 **long-press** (~1 s) — no host or serial command needed:
 
 - The device **boots into wardrive** mode.
-- **Long-press** → switches to **skimmer-only** scanning; the LED confirms with
+- **Long-press** → **skimmer-only** scanning; the LED confirms with
   **3 purple blinks**.
-- **Long-press again** → switches back to **wardrive**; the LED confirms with
-  **3 green blinks**.
+- **Long-press again** → **Zigbee / Thread** (802.15.4) sniffing; **3 amber
+  blinks**.
+- **Long-press again** → back to **wardrive**; **3 green blinks**.
 
 Skimmer-only mode runs the BLE skimmer scan continuously (WiFi off) so the
-proximity LED stays responsive; wardrive is the normal WiFi + BLE wardriving
-cycle. The serial commands (`wardrive`, `capture -skimmer`, `stop`, …) still
+proximity LED stays responsive; Zigbee / Thread mode gives the radio to
+802.15.4 exclusively; wardrive is the normal WiFi + BLE wardriving cycle. The
+serial commands (`wardrive`, `capture -skimmer`, `zigbee`, `stop`, …) still
 work and stay in sync with the button.
+
+> **Leaving Zigbee mode restarts the device.** WiFi, BLE and 802.15.4 share one
+> radio on the C5, and after an 802.15.4 sniff the WiFi side stays deaf — scans
+> finish but return nothing, and restarting only the WiFi driver does not help.
+> So when a WiFi mode (wardrive, auto, `scanap`, `pineap`) is requested after
+> Zigbee mode, the firmware restarts itself and comes back up directly in that
+> mode (a few seconds; the announce line is emitted again). Going from Zigbee
+> to skimmer does not restart, because BLE is unaffected.
 
 Enabled by default on the C5 environments via `-DHUGINN_HAS_MODE_BUTTON=1`.
 Tunables (override in `platformio.ini` `build_flags`):
@@ -154,7 +164,7 @@ The `tdongle-c5` build drives the dongle's 160×80 screen at ~30 fps from live s
 | **TARGETS** | The five strongest APs with channel, RSSI and signal bars (open networks in red) |
 | **HUGINN** | Session totals, threat tally, uptime and free heap beside the raven's eye |
 
-A Flipper Zero, separated AirTag, suspected skimmer or Pineapple takes over the whole screen for a few seconds. **BOOT button:** click = next page, double-click = flip the screen 180°, triple-click = stop / resume the page auto-cycle (both remembered across reboots), long press = toggle wardrive / skimmer. The onboard APA102 LED doubles as the [proximity alert LED](#proximity-alert-led-c5).
+In Zigbee / Thread mode the radar shows 802.15.4 devices as green blips and TARGETS lists them by protocol and PAN ID. A scan-mode change is announced on screen. A Flipper Zero, separated AirTag, suspected skimmer or Pineapple takes over the whole screen for a few seconds. **BOOT button:** click = next page, double-click = flip the screen 180°, triple-click = stop / resume the page auto-cycle (both remembered across reboots), long press = toggle wardrive / skimmer. The onboard APA102 LED doubles as the [proximity alert LED](#proximity-alert-led-c5).
 
 ```
 pio run -e tdongle-c5 -t upload

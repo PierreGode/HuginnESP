@@ -31,6 +31,8 @@ void display_note_wifi(const uint8_t bssid[6], const char* ssid, int rssi,
                        int channel, const char* security);
 void display_note_ble(const char* mac, int rssi,
                       bool flipper, bool airtag, bool skimmer);
+void display_note_zigbee(const char* key, const char* panid, const char* proto,
+                         int rssi, int channel);
 
 // Advance to the next UI page (button short-press).
 void display_next_page();
@@ -46,6 +48,7 @@ void display_toggle_auto_cycle();
 
 static inline void display_note_wifi(const uint8_t*, const char*, int, int, const char*) {}
 static inline void display_note_ble(const char*, int, bool, bool, bool) {}
+static inline void display_note_zigbee(const char*, const char*, const char*, int, int) {}
 static inline void display_next_page() {}
 static inline void display_flip() {}
 static inline void display_toggle_auto_cycle() {}

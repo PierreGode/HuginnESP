@@ -47,6 +47,7 @@ const uint32_t PAGE_ROTATE_MS = 9000;
 const uint32_t PAGE_TRANS_MS  = 380;
 const uint32_t WIFI_EXPIRE_MS = 30000;
 const uint32_t BLE_EXPIRE_MS  = 20000;
+const uint32_t ZIG_EXPIRE_MS  = 60000;   // a full 16-channel sweep takes ~5 s; devices are quiet
 
 enum { PAGE_RADAR, PAGE_SPECTRUM, PAGE_TARGETS, PAGE_HUGINN, PAGE_COUNT };
 const char* const PAGE_NAMES[PAGE_COUNT] = { "RADAR", "SPECTRUM", "TARGETS", "HUGINN" };
@@ -68,8 +69,10 @@ struct Dev {
 
 const int MAX_WIFI = 48;
 const int MAX_BLE  = 48;
+const int MAX_ZIG  = 24;
 Dev g_wifi[MAX_WIFI];
 Dev g_ble[MAX_BLE];
+Dev g_zig[MAX_ZIG];        // 802.15.4 (Zigbee / Thread) devices
 
 struct Alert {
     bool     pending;   // raised but not yet started (e.g. during the splash)
@@ -99,7 +102,10 @@ int      g_prevPage  = -1;
 uint32_t g_pageStart = 0;
 bool     g_nextReq   = false;
 bool     g_autoRotate = true;
-bool     g_toastPending = false;     // show the auto-rotate notice from the next frame
+bool     g_toastPending = false;     // show g_toastText from the next frame
+char     g_toastText[22] = "";
+uint16_t g_toastCol   = 0xFFFF;
+char     g_lastMode[14] = "";        // to announce scan-mode changes
 uint32_t g_toastStart = 0;
 bool     g_toastOn    = false;
 const uint32_t TOAST_MS = 1600;
@@ -424,9 +430,9 @@ void drawRadar(uint32_t now, uint32_t /*tPage*/, const TdUiStatus& st) {
     }
 
     // Blips — angle from the device hash, range from RSSI.
-    for (int pass = 0; pass < 2; pass++) {
-        const Dev* tbl = pass == 0 ? g_wifi : g_ble;
-        const int  n   = pass == 0 ? MAX_WIFI : MAX_BLE;
+    for (int pass = 0; pass < 3; pass++) {
+        const Dev* tbl = pass == 0 ? g_wifi : pass == 1 ? g_ble : g_zig;
+        const int  n   = pass == 0 ? MAX_WIFI : pass == 1 ? MAX_BLE : MAX_ZIG;
         for (int i = 0; i < n; i++) {
             const Dev& d = tbl[i];
             if (!d.used) continue;
@@ -436,7 +442,8 @@ void drawRadar(uint32_t now, uint32_t /*tPage*/, const TdUiStatus& st) {
             int y   = cy + ((isin(ang) * rr) >> 12);
 
             bool threat = pass == 1 && d.flags != 0;
-            uint16_t col = threat ? COL_BLOOD : (pass == 0 ? COL_RUNE : COL_STEEL);
+            uint16_t col = threat ? COL_BLOOD
+                         : (pass == 0 ? COL_RUNE : pass == 1 ? COL_STEEL : COL_MOSS);
 
             // Brightness decays with the angle the sweep has travelled past it.
             int behind = (sweep - ang) & 1023;
@@ -556,12 +563,16 @@ void drawSpectrum(uint32_t now, uint32_t /*tPage*/, const TdUiStatus&) {
 // ---------------------------------------------------------------------
 //  Page: TARGETS (strongest signals)
 // ---------------------------------------------------------------------
-void drawTargets(uint32_t now, uint32_t tPage, const TdUiStatus&) {
+void drawTargets(uint32_t now, uint32_t tPage, const TdUiStatus& st) {
     const int ROWS = 5;
     const Dev* top[ROWS];
     int n = 0;
-    for (int i = 0; i < MAX_WIFI; i++) {
-        const Dev* d = &g_wifi[i];
+    // In Zigbee mode the list shows 802.15.4 devices instead of Wi-Fi APs.
+    const bool zig  = st.mode && strcmp(st.mode, "zigbee") == 0;
+    const Dev* tbl  = zig ? g_zig : g_wifi;
+    const int  tblN = zig ? MAX_ZIG : MAX_WIFI;
+    for (int i = 0; i < tblN; i++) {
+        const Dev* d = &tbl[i];
         if (!d->used) continue;
         int pos = n;
         while (pos > 0 && (top[pos - 1]->rssi < d->rssi ||
@@ -593,8 +604,8 @@ void drawTargets(uint32_t now, uint32_t tPage, const TdUiStatus&) {
 
         char name[16];
         snprintf(name, sizeof(name), "%.15s", d.name[0] ? d.name : "<hidden>");
-        bool open = d.sec == TD_SEC_OPEN;
-        text(2, y, name, open ? COL_BLOOD : COL_BONE);
+        bool open = !zig && d.sec == TD_SEC_OPEN;
+        text(2, y, name, open ? COL_BLOOD : (zig ? COL_MOSS : COL_BONE));
 
         char buf[12];
         snprintf(buf, sizeof(buf), "c%d", (int)d.channel);
@@ -609,7 +620,7 @@ void drawTargets(uint32_t now, uint32_t tPage, const TdUiStatus&) {
         hline(2, y + 9, full, COL_FAINT);
         int gx = (int)((now / 7 + i * 37) % 220) - 30;
         for (int x = 0; x < w; x++) {
-            uint16_t c = mix565(COL_AGED, open ? COL_BLOOD : COL_RUNE, x * 256 / full);
+            uint16_t c = mix565(COL_AGED, open ? COL_BLOOD : (zig ? COL_MOSS : COL_RUNE), x * 256 / full);
             int dg = x - gx; if (dg < 0) dg = -dg;
             if (dg < 10) c = mix565(c, COL_WHITE, (10 - dg) * 20);
             px(2 + x, y + 9, c);
@@ -964,6 +975,8 @@ void td_ui_init() {
     }
     memset(g_wifi, 0, sizeof(g_wifi));
     memset(g_ble, 0, sizeof(g_ble));
+    memset(g_zig, 0, sizeof(g_zig));
+    g_lastMode[0] = 0;
     memset(&g_alert, 0, sizeof(g_alert));
     memset(g_alerted, 0, sizeof(g_alerted));
     g_alertedNext = 0;
@@ -1013,6 +1026,17 @@ void td_ui_note_ble(uint32_t nowMs, uint32_t hash, const char* mac,
     td_ui_alert(nowMs, type, mac, rssi);
 }
 
+void td_ui_note_zigbee(uint32_t nowMs, uint32_t hash, const char* label,
+                       int rssi, int channel) {
+    bool isNew;
+    Dev* d = devSlot(g_zig, MAX_ZIG, hash, nowMs, isNew);
+    d->last    = nowMs;
+    d->rssi    = (int8_t)clampi(rssi, -127, 0);
+    d->channel = (uint8_t)clampi(channel, 0, 255);
+    d->sec     = TD_SEC_WPA;
+    snprintf(d->name, sizeof(d->name), "%s", label ? label : "802.15.4");
+}
+
 void td_ui_alert(uint32_t nowMs, const char* type, const char* detail, int rssi) {
     snprintf(g_alert.type, sizeof(g_alert.type), "%s", type ? type : "ALERT");
     snprintf(g_alert.detail, sizeof(g_alert.detail), "%s", detail ? detail : "");
@@ -1028,7 +1052,11 @@ void td_ui_next_page() {
 
 void td_ui_set_auto_rotate(bool enabled, bool announce) {
     g_autoRotate = enabled;
-    if (announce) g_toastPending = true;
+    if (announce) {
+        snprintf(g_toastText, sizeof(g_toastText), "%s", enabled ? "AUTO-CYCLE ON" : "AUTO-CYCLE OFF");
+        g_toastCol     = enabled ? COL_RUNE : COL_STEEL;
+        g_toastPending = true;
+    }
 }
 
 bool td_ui_auto_rotate() {
@@ -1048,12 +1076,32 @@ void td_ui_render(uint16_t* fb, const TdUiStatus& st) {
     // ---- Housekeeping that runs on every frame, whatever is on screen ----
     expire(g_wifi, MAX_WIFI, now, WIFI_EXPIRE_MS);
     expire(g_ble, MAX_BLE, now, BLE_EXPIRE_MS);
+    expire(g_zig, MAX_ZIG, now, ZIG_EXPIRE_MS);
+
+    // Announce scan-mode changes (button long-press or serial command).
+    {
+        const char* m = st.mode ? st.mode : "";
+        if (strncmp(m, g_lastMode, sizeof(g_lastMode) - 1) != 0) {
+            if (g_lastMode[0]) {
+                char up[14];
+                size_t k = 0;
+                for (; m[k] && k < sizeof(up) - 1; k++)
+                    up[k] = (m[k] >= 'a' && m[k] <= 'z') ? (char)(m[k] - 32) : m[k];
+                up[k] = 0;
+                snprintf(g_toastText, sizeof(g_toastText), "MODE %s", up);
+                g_toastCol = strcmp(m, "zigbee") == 0 ? COL_MOSS
+                           : strcmp(m, "skimmer") == 0 ? COL_BLOOD : COL_RUNE;
+                g_toastPending = true;
+            }
+            snprintf(g_lastMode, sizeof(g_lastMode), "%s", m);
+        }
+    }
 
     int   omens = st.flippers + st.airtags + st.skimmers;
     bool  zig   = st.mode && strcmp(st.mode, "zigbee") == 0;
     float tw = (float)countUsed(g_wifi, MAX_WIFI);
     float tb = (float)countUsed(g_ble, MAX_BLE);
-    float t3 = (float)(zig ? st.sessZigbee : omens);
+    float t3 = (float)(zig ? countUsed(g_zig, MAX_ZIG) : omens);
     g_dispWifi  += (tw - g_dispWifi) * 0.16f;
     g_dispBle   += (tb - g_dispBle) * 0.16f;
     g_dispThird += (t3 - g_dispThird) * 0.16f;
@@ -1128,14 +1176,14 @@ void td_ui_render(uint16_t* fb, const TdUiStatus& st) {
         if (tt >= TOAST_MS) {
             g_toastOn = false;
         } else {
-            const char* msg = g_autoRotate ? "AUTO-CYCLE ON" : "AUTO-CYCLE OFF";
+            const char* msg = g_toastText;
             const int w = textW(msg) + 13, h = 17, x = (W - w) / 2;
             float e = tt < 200 ? easeOut(tt / 200.0f)
                     : tt > TOAST_MS - 200 ? easeOut((TOAST_MS - tt) / 200.0f) : 1.0f;
             const int y = 31 - (int)((1.0f - e) * 50);
             fillRect(x, y, w, h, COL_HEADER);
-            rect(x, y, w, h, g_autoRotate ? COL_RUNE : COL_STEEL);
-            text(x + 7, y + 5, msg, g_autoRotate ? COL_RUNE : COL_STEEL);
+            rect(x, y, w, h, g_toastCol);
+            text(x + 7, y + 5, msg, g_toastCol);
         }
     }
 }
