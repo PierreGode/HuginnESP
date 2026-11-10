@@ -80,6 +80,7 @@ static bool              s_started = false;
 static const SPISettings s_spi(TDONGLE_LCD_HZ, MSBFIRST, SPI_MODE0);
 static uint8_t           s_rotation  = TDONGLE_LCD_ROTATION;   // 1 or 3
 static volatile bool     s_flipReq   = false;                  // set by display_flip()
+static volatile bool     s_autoReq   = false;                  // set by display_toggle_auto_cycle()
 
 // ---------------------------------------------------------------------
 //  ST7735 low level
@@ -201,6 +202,10 @@ void display_add_alert(const char* type, const char* mac, int rssi) {
     xSemaphoreGive(s_mutex);
 }
 
+void display_toggle_auto_cycle() {
+    s_autoReq = true;      // applied by the render task (it also saves to NVS)
+}
+
 void display_flip() {
     s_flipReq = true;      // applied by the render task, which owns the SPI bus
 }
@@ -243,9 +248,25 @@ void display_task(void*) {
         st.freeHeapK  = ESP.getFreeHeap() / 1024;
         st.fw         = HUGINN_FW_VERSION;
 
+        bool saveAuto = false, autoNow = true;
         xSemaphoreTake(s_mutex, portMAX_DELAY);
+        if (s_autoReq) {
+            s_autoReq = false;
+            autoNow   = !td_ui_auto_rotate();
+            td_ui_set_auto_rotate(autoNow, true);
+            saveAuto  = true;
+        }
         td_ui_render(s_fb, st);
         xSemaphoreGive(s_mutex);
+
+        if (saveAuto) {
+            Preferences prefs;
+            if (prefs.begin("huginn", false)) {
+                prefs.putBool("autopage", autoNow);
+                prefs.end();
+            }
+            Serial.printf("[DISP] page auto-cycle %s (saved)\n", autoNow ? "on" : "off");
+        }
 
         if (s_flipReq) {
             s_flipReq  = false;
@@ -295,12 +316,14 @@ void display_init() {
     ledcAttach(TDONGLE_LCD_BL, 5000, 8);
     backlight(0);
 
-    // Orientation chosen with a double-click survives reboots.
+    // Orientation (double-click) and page auto-cycle (triple-click) survive reboots.
+    bool autoCycle = true;
     {
         Preferences prefs;
         if (prefs.begin("huginn", true)) {
             const uint8_t r = prefs.getUChar("lcdrot", TDONGLE_LCD_ROTATION);
             if (r == 1 || r == 3) s_rotation = r;
+            autoCycle = prefs.getBool("autopage", true);
             prefs.end();
         }
     }
@@ -309,6 +332,7 @@ void display_init() {
     lcdPush();          // black
 
     td_ui_init();
+    td_ui_set_auto_rotate(autoCycle, false);
     s_mutex = xSemaphoreCreateMutex();
 
     // The task starts here (not in main) so the boot splash animates while the
