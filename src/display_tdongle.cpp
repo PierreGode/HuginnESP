@@ -292,10 +292,15 @@ void display_task(void*) {
         }
         lcdPush();
 
-        // Fade the backlight in over the first half second.
+        // Fade the backlight in over the first half second, then re-assert it
+        // on every frame. The LEDC backlight PWM used to be written only once
+        // (here, at boot); if its output register or clock source was ever
+        // disturbed afterwards, nothing restored it and the panel went dark
+        // after ~a minute while the MCU kept rendering at 30 fps. Re-driving it
+        // each frame makes any such glitch self-heal within one frame (~33 ms).
         const uint32_t up = millis() - t0;
         if (up < 600) backlight((uint8_t)(up * TDONGLE_LCD_BRIGHTNESS / 600));
-        else if (up < 700) backlight(TDONGLE_LCD_BRIGHTNESS);
+        else          backlight(TDONGLE_LCD_BRIGHTNESS);
 
         const uint32_t busy = micros() - start;
         busyUs += busy;
