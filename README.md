@@ -529,7 +529,7 @@ docs/                   # Web flasher (GitHub Pages site)
 └─────────────────────────────────────────────────┘
 ```
 
-## By Pierre Gode
+## By Pierre Gode 2026
 
 ## License
 
