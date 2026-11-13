@@ -529,6 +529,8 @@ docs/                   # Web flasher (GitHub Pages site)
 └─────────────────────────────────────────────────┘
 ```
 
+## By Pierre Gode
+
 ## License
 
 MIT
