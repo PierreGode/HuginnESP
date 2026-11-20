@@ -29,6 +29,12 @@ int  ble_scanner_flipper_count();
 int  ble_scanner_airtag_count();
 int  ble_scanner_skimmer_count();
 
+// Wardrive coalescing: while on, BLE_MODE_ALL holds each device once per phase
+// (strongest RSSI, first name) instead of printing every advertisement;
+// flush prints what was held and clears it. Turning it off flushes too.
+void ble_scanner_set_coalesce(bool on);
+int  ble_scanner_flush_coalesced();
+
 // Session totals — unique MACs observed since boot. RAM-only, reset on power cycle.
 int  ble_scanner_session_count();
 int  ble_scanner_session_flipper_count();
