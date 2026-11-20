@@ -203,6 +203,10 @@ void scan_cycle_task(void* param) {
                           (unsigned)channelsDone, (unsigned)kWardriveChannelsLen,
                           (unsigned)(millis() - phaseStart));
 
+            // One line per BLE device per phase (not per advertisement): the
+            // repeats used to make up most of the serial traffic, and a host
+            // that falls behind loses whatever it doesn't read in time.
+            ble_scanner_set_coalesce(true);
             ble_scanner_start(BLE_MODE_ALL);
             activeBle = BLE_MODE_ALL;
             uint32_t bleT = 0;
@@ -213,6 +217,7 @@ void scan_cycle_task(void* param) {
             }
             ble_scanner_stop();
             activeBle = BLE_MODE_OFF;
+            ble_scanner_set_coalesce(false);   // prints the phase's devices
 
             // NOTE: no 802.15.4/Zigbee phase in the wardrive cycle on the C5.
             // WiFi, BLE and 802.15.4 share ONE 2.4 GHz radio; once 802.15.4 has

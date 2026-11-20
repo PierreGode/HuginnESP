@@ -194,6 +194,104 @@ static void checkSpam(const String& mac) {
     }
 }
 
+// ---- Wardrive coalescing ----
+// A wardrive BLE phase is ~1.5 s and a nearby device advertises several times
+// in it (measured on a T-Dongle-C5: 64 lines per phase for 23 devices). Every
+// line crosses the USB-serial link to the host, and that link DROPS what a
+// slow host does not read in time — so the repeats crowded out Wi-Fi results
+// (a host reading 5 lines/s lost ~88 % of Wi-Fi sightings). With coalescing on,
+// each device is held once per phase — strongest RSSI, first non-empty name and,
+// on GPS boards, the fix at that strongest sighting — and printed when the
+// phase ends, in the same JSON line format.
+#ifndef BLE_COALESCE_CAP
+#define BLE_COALESCE_CAP 128          // devices held per phase; more print at once
+#endif
+struct CoalescedBle {
+    String name;
+    int    rssi;
+#if HUGINN_HAS_GPS
+    GpsPosition gp;
+#endif
+};
+static volatile bool s_coalesce = false;
+static std::map<String, CoalescedBle> s_phaseBle;
+static SemaphoreHandle_t s_phaseMutex = nullptr;
+
+static void printBleJson(const String& mac, const String& name, int rssi
+#if HUGINN_HAS_GPS
+                         , const GpsPosition& gp
+#endif
+                         ) {
+#if HUGINN_HAS_GPS
+    if (gp.fix) {
+        Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d,\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.2f,\"speed_mps\":%.2f}\n",
+                      mac.c_str(), name.c_str(), rssi,
+                      gp.lat, gp.lon, gp.speed_kph, gp.speed_kph / 3.6f);
+        return;
+    }
+#endif
+    Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d}\n",
+                  mac.c_str(), name.c_str(), rssi);
+}
+
+// Hold this sighting for the end of the phase. False = not held (coalescing
+// off, or the phase table is full and this is a new device): print it now.
+static bool coalesceAdd(const String& mac, const String& name, int rssi) {
+    if (!s_coalesce || !s_phaseMutex) return false;
+    bool held = false;
+    if (xSemaphoreTake(s_phaseMutex, portMAX_DELAY) == pdTRUE) {
+        auto it = s_phaseBle.find(mac);
+        if (it != s_phaseBle.end()) {
+            CoalescedBle& c = it->second;
+            if (c.name.length() == 0 && name.length() > 0) c.name = name;
+            if (rssi > c.rssi) {
+                c.rssi = rssi;
+#if HUGINN_HAS_GPS
+                c.gp = gps_get_position();
+#endif
+            }
+            held = true;
+        } else if (s_phaseBle.size() < BLE_COALESCE_CAP) {
+            CoalescedBle c;
+            c.name = name;
+            c.rssi = rssi;
+#if HUGINN_HAS_GPS
+            c.gp = gps_get_position();
+#endif
+            s_phaseBle.emplace(mac, c);
+            held = true;
+        }
+        xSemaphoreGive(s_phaseMutex);
+    }
+    return held;
+}
+
+int ble_scanner_flush_coalesced() {
+    if (!s_phaseMutex) return 0;
+    std::map<String, CoalescedBle> out;
+    if (xSemaphoreTake(s_phaseMutex, portMAX_DELAY) == pdTRUE) {
+        out.swap(s_phaseBle);                 // print outside the lock
+        xSemaphoreGive(s_phaseMutex);
+    }
+    for (auto& kv : out) {
+        printBleJson(kv.first, kv.second.name, kv.second.rssi
+#if HUGINN_HAS_GPS
+                     , kv.second.gp
+#endif
+                     );
+    }
+    return (int)out.size();
+}
+
+void ble_scanner_set_coalesce(bool on) {
+    if (!on && s_coalesce) {
+        s_coalesce = false;
+        ble_scanner_flush_coalesced();        // never lose what the phase held
+        return;
+    }
+    s_coalesce = on;
+}
+
 // ---- Scan callbacks ----
 class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) override {
@@ -293,21 +391,16 @@ class ScanCallbacks : public BLEAdvertisedDeviceCallbacks {
 
         // ---- All mode: output everything ----
         if (s_mode == BLE_MODE_ALL) {
+            // Wardrive: held once per phase (see coalesceAdd). Otherwise — or
+            // when the phase table is full — printed straight away as before.
+            if (!coalesceAdd(mac, name, rssi)) {
+                printBleJson(mac, name, rssi
 #if HUGINN_HAS_GPS
-            GpsPosition gp = gps_get_position();
-            if (gp.fix) {
-                Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d,\"lat\":%.7f,\"lon\":%.7f,\"speed_kph\":%.2f,\"speed_mps\":%.2f}\n",
-                              mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi,
-                              gp.lat, gp.lon, gp.speed_kph, gp.speed_kph / 3.6f);
-            } else {
-                Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d}\n",
-                              mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi);
-            }
-#else
-            Serial.printf("{\"type\":\"BLE\",\"mac\":\"%s\",\"name\":\"%s\",\"rssi\":%d}\n",
-                          mac.c_str(), name.length() > 0 ? name.c_str() : "", rssi);
+                             , gps_get_position()
 #endif
-            Serial.flush();
+                             );
+                Serial.flush();
+            }
 
             if (flipper) {
                 s_flipperCount++;
@@ -343,6 +436,7 @@ static ScanCallbacks s_callbacks;
 
 void ble_scanner_init() {
     if (!s_sessionMutex) s_sessionMutex = xSemaphoreCreateMutex();
+    if (!s_phaseMutex) s_phaseMutex = xSemaphoreCreateMutex();
     BLEDevice::init("HuginnESP");
     s_pScan = BLEDevice::getScan();
     s_pScan->setAdvertisedDeviceCallbacks(&s_callbacks, false);
