@@ -1,0 +1,2 @@
+import type { BluetoothLePlugin } from './definitions';
+export declare const BluetoothLe: BluetoothLePlugin;

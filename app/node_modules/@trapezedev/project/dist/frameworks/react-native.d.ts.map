@@ -1,0 +1,1 @@
+{"version":3,"file":"react-native.d.ts","sourceRoot":"","sources":["../../src/frameworks/react-native.ts"],"names":[],"mappings":"AAGA,OAAO,EAAE,SAAS,EAAE,MAAM,GAAG,CAAC;AAC9B,OAAO,EAAE,aAAa,EAAE,MAAM,YAAY,CAAC;AAE3C,qBAAa,oBAAqB,SAAQ,SAAS;IAC9B,MAAM,EAAE,OAAO;gBAAf,MAAM,EAAE,OAAO;WAIrB,YAAY,CAAC,OAAO,EAAE,aAAa,GAAG,OAAO,CAAC,oBAAoB,GAAG,IAAI,CAAC;CA0BxF"}

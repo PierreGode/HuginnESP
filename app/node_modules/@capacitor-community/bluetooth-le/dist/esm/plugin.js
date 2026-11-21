@@ -1,0 +1,5 @@
+import { registerPlugin } from '@capacitor/core';
+export const BluetoothLe = registerPlugin('BluetoothLe', {
+    web: () => import('./web').then((m) => new m.BluetoothLeWeb()),
+});
+//# sourceMappingURL=plugin.js.map

@@ -1,0 +1,44 @@
+{
+  "name": "@xml-tools/parser",
+  "version": "1.0.12",
+  "description": "XML Parser Implemented in JavaScript",
+  "keywords": [
+    "xml",
+    "parser"
+  ],
+  "main": "lib/api.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SAP/app-studio-toolkit.git",
+    "directory": "projects/xml-tools/packages/parser"
+  },
+  "license": "Apache-2.0",
+  "typings": "./api.d.ts",
+  "files": [
+    "lib",
+    "api.d.ts",
+    "CHANGELOG.md",
+    "CHANGELOG.old.md"
+  ],
+  "dependencies": {
+    "chevrotain": "7.1.1"
+  },
+  "devDependencies": {
+    "klaw-sync": "6.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/SAP/app-studio-toolkit/issues"
+  },
+  "scripts": {
+    "ci": "npm-run-all clean type-check coverage:*",
+    "clean": "rimraf ./coverage ./nyc_output",
+    "test": "mocha \"./test/**/*spec.js\"",
+    "coverage:run": "nyc mocha \"./test/**/*spec.js\"",
+    "coverage:check": "nyc check-coverage --lines 100 --branches 100 --statements 100 --functions 100",
+    "snapshots:update": "node ./scripts/update-snapshots.js",
+    "type-check": "tsc"
+  }
+}

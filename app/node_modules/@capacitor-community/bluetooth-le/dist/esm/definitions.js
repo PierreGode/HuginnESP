@@ -1,0 +1,43 @@
+/**
+ * Android scan mode
+ */
+export var ScanMode;
+(function (ScanMode) {
+    /**
+     * Perform Bluetooth LE scan in low power mode. This mode is enforced if the scanning application is not in foreground.
+     * https://developer.android.com/reference/android/bluetooth/le/ScanSettings#SCAN_MODE_LOW_POWER
+     */
+    ScanMode[ScanMode["SCAN_MODE_LOW_POWER"] = 0] = "SCAN_MODE_LOW_POWER";
+    /**
+     * Perform Bluetooth LE scan in balanced power mode. (default) Scan results are returned at a rate that provides a good trade-off between scan frequency and power consumption.
+     * https://developer.android.com/reference/android/bluetooth/le/ScanSettings#SCAN_MODE_BALANCED
+     */
+    ScanMode[ScanMode["SCAN_MODE_BALANCED"] = 1] = "SCAN_MODE_BALANCED";
+    /**
+     * Scan using highest duty cycle. It's recommended to only use this mode when the application is running in the foreground.
+     * https://developer.android.com/reference/android/bluetooth/le/ScanSettings#SCAN_MODE_LOW_LATENCY
+     */
+    ScanMode[ScanMode["SCAN_MODE_LOW_LATENCY"] = 2] = "SCAN_MODE_LOW_LATENCY";
+})(ScanMode || (ScanMode = {}));
+/**
+ * Android connection priority used in `requestConnectionPriority`
+ */
+export var ConnectionPriority;
+(function (ConnectionPriority) {
+    /**
+     * Use the connection parameters recommended by the Bluetooth SIG. This is the default value if no connection parameter update is requested.
+     * https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_BALANCED
+     */
+    ConnectionPriority[ConnectionPriority["CONNECTION_PRIORITY_BALANCED"] = 0] = "CONNECTION_PRIORITY_BALANCED";
+    /**
+     * Request a high priority, low latency connection. An application should only request high priority connection parameters to transfer large amounts of data over LE quickly. Once the transfer is complete, the application should request CONNECTION_PRIORITY_BALANCED connection parameters to reduce energy use.
+     * https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_HIGH
+     */
+    ConnectionPriority[ConnectionPriority["CONNECTION_PRIORITY_HIGH"] = 1] = "CONNECTION_PRIORITY_HIGH";
+    /**
+     * Request low power, reduced data rate connection parameters.
+     * https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_LOW_POWER
+     */
+    ConnectionPriority[ConnectionPriority["CONNECTION_PRIORITY_LOW_POWER"] = 2] = "CONNECTION_PRIORITY_LOW_POWER";
+})(ConnectionPriority || (ConnectionPriority = {}));
+//# sourceMappingURL=definitions.js.map

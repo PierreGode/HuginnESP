@@ -1,0 +1,59 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+-->
+
+# cordova-node-xcode
+
+[![npm - Latest](https://img.shields.io/npm/v/xcode/latest?label=Latest%20Release%20(npm))](https://npmjs.com/package/xcode)
+[![GitHub](https://img.shields.io/github/package-json/v/apache/cordova-node-xcode?label=Development%20(Git))](https://github.com/apache/cordova-node-xcode)
+
+[![GitHub - Node Workflow](https://github.com/apache/cordova-node-xcode/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/apache/cordova-node-xcode/actions/workflows/ci.yml?query=branch%3Amaster)
+[![GitHub - Release Audit Workflow](https://github.com/apache/cordova-node-xcode/actions/workflows/release-audit.yml/badge.svg?branch=master)](https://github.com/apache/cordova-node-xcode/actions/workflows/release-audit.yml?query=branch%3Amaster)
+[![Code Coverage](https://codecov.io/github/apache/cordova-node-xcode/coverage.svg?branch=master)](https://codecov.io/github/apache/cordova-node-xcode?branch=master)
+
+Parser utility for xcodeproj project files
+
+Allows you to edit xcodeproject files and write them back out.
+
+based on donated code from [alunny / node-xcode](https://github.com/alunny/node-xcode)
+
+## Example
+
+```js
+const fs = require('node:fs');
+const xcode = require('xcode');
+
+// Path to the Xcode project's project.pbxproj file.
+const projectPath = 'myproject.xcodeproj/project.pbxproj';
+// Create a PBXProject instance for the project.
+const myProj = xcode.project(projectPath);
+
+// Parse the project file asynchronously before making changes.
+myProj.parse(function (err) {
+    myProj.addHeaderFile('foo.h');
+    myProj.addSourceFile('foo.m');
+    myProj.addFramework('FooKit.framework');
+   
+    // Write the updated project back to disk.
+    fs.writeFileSync(projectPath, myProj.writeSync());
+
+    console.log('New project written');
+});
+```

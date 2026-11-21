@@ -1,0 +1,1 @@
+export declare function parseUUID(uuid: any): string;

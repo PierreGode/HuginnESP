@@ -66,7 +66,10 @@ jobs:
           arduino-cli config add board_manager.additional_urls \
             "https://espressif.github.io/arduino-esp32/package_esp32_dev_index.json"
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          # Pinned: an unpinned install takes the newest core (4.0.0 ships
+          # ~2 GB of toolchains and fills the runner's disk), and 3.3.11 is
+          # the version the XIAO build is verified on.
+          arduino-cli core install esp32:esp32@3.3.11
 
       - name: Build firmware (Seeed XIAO ESP32-C5)
         run: bash scripts/build-xiao.sh

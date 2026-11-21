@@ -1,0 +1,27 @@
+{
+	"appId": "one.gode.huginnesp",
+	"appName": "HuginnESP",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	},
+	"android": {
+		"useLegacyBridge": true
+	},
+	"packageClassList": [
+		"BackgroundGeolocation",
+		"BluetoothLe",
+		"KeepAwakePlugin",
+		"AppPlugin",
+		"FilesystemPlugin",
+		"HapticsPlugin",
+		"PreferencesPlugin",
+		"SharePlugin",
+		"StatusBarPlugin"
+	]
+}

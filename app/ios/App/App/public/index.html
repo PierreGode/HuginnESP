@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#07090d" />
+    <link rel="icon" type="image/webp" href="/huginn.webp" />
+    <title>HuginnESP</title>
+    <style>
+      /* Splash: painted on the first frame, faded out by main.ts once the
+         shell is up. Inline so it shows before the app CSS loads. */
+      html, body { margin: 0; background: #07090d; }
+      #splash {
+        position: fixed; inset: 0; z-index: 9999; background: #07090d;
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.4s ease;
+      }
+      #splash.hide { opacity: 0; pointer-events: none; }
+      #splash img { width: 132px; height: 132px; border-radius: 30px; }
+    </style>
+    <script type="module" crossorigin src="/assets/index-CfBi92mr.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-wDd3yXpU.css">
+  </head>
+  <body>
+    <div id="splash" aria-hidden="true"><img src="/huginn.webp" alt="" /></div>
+    <div id="app"></div>
+  </body>
+</html>

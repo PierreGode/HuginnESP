@@ -1,0 +1,990 @@
+var capacitorCommunityBluetoothLe = (function (exports, core) {
+    'use strict';
+
+    /**
+     * Android scan mode
+     */
+    exports.ScanMode = void 0;
+    (function (ScanMode) {
+        /**
+         * Perform Bluetooth LE scan in low power mode. This mode is enforced if the scanning application is not in foreground.
+         * https://developer.android.com/reference/android/bluetooth/le/ScanSettings#SCAN_MODE_LOW_POWER
+         */
+        ScanMode[ScanMode["SCAN_MODE_LOW_POWER"] = 0] = "SCAN_MODE_LOW_POWER";
+        /**
+         * Perform Bluetooth LE scan in balanced power mode. (default) Scan results are returned at a rate that provides a good trade-off between scan frequency and power consumption.
+         * https://developer.android.com/reference/android/bluetooth/le/ScanSettings#SCAN_MODE_BALANCED
+         */
+        ScanMode[ScanMode["SCAN_MODE_BALANCED"] = 1] = "SCAN_MODE_BALANCED";
+        /**
+         * Scan using highest duty cycle. It's recommended to only use this mode when the application is running in the foreground.
+         * https://developer.android.com/reference/android/bluetooth/le/ScanSettings#SCAN_MODE_LOW_LATENCY
+         */
+        ScanMode[ScanMode["SCAN_MODE_LOW_LATENCY"] = 2] = "SCAN_MODE_LOW_LATENCY";
+    })(exports.ScanMode || (exports.ScanMode = {}));
+    /**
+     * Android connection priority used in `requestConnectionPriority`
+     */
+    exports.ConnectionPriority = void 0;
+    (function (ConnectionPriority) {
+        /**
+         * Use the connection parameters recommended by the Bluetooth SIG. This is the default value if no connection parameter update is requested.
+         * https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_BALANCED
+         */
+        ConnectionPriority[ConnectionPriority["CONNECTION_PRIORITY_BALANCED"] = 0] = "CONNECTION_PRIORITY_BALANCED";
+        /**
+         * Request a high priority, low latency connection. An application should only request high priority connection parameters to transfer large amounts of data over LE quickly. Once the transfer is complete, the application should request CONNECTION_PRIORITY_BALANCED connection parameters to reduce energy use.
+         * https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_HIGH
+         */
+        ConnectionPriority[ConnectionPriority["CONNECTION_PRIORITY_HIGH"] = 1] = "CONNECTION_PRIORITY_HIGH";
+        /**
+         * Request low power, reduced data rate connection parameters.
+         * https://developer.android.com/reference/android/bluetooth/BluetoothGatt#CONNECTION_PRIORITY_LOW_POWER
+         */
+        ConnectionPriority[ConnectionPriority["CONNECTION_PRIORITY_LOW_POWER"] = 2] = "CONNECTION_PRIORITY_LOW_POWER";
+    })(exports.ConnectionPriority || (exports.ConnectionPriority = {}));
+
+    /**
+     * Convert an array of numbers into a DataView.
+     */
+    function numbersToDataView(value) {
+        return new DataView(Uint8Array.from(value).buffer);
+    }
+    /**
+     * Convert a DataView into an array of numbers.
+     */
+    function dataViewToNumbers(value) {
+        return Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
+    }
+    /**
+     * Convert a string into a DataView.
+     */
+    function textToDataView(value) {
+        return numbersToDataView(value.split('').map((s) => s.charCodeAt(0)));
+    }
+    /**
+     * Convert a DataView into a string.
+     */
+    function dataViewToText(value) {
+        return String.fromCharCode(...dataViewToNumbers(value));
+    }
+    /**
+     * Convert a 16 bit UUID into a 128 bit UUID string
+     * @param value number, e.g. 0x180d
+     * @return string, e.g. '0000180d-0000-1000-8000-00805f9b34fb'
+     */
+    function numberToUUID(value) {
+        return `0000${value.toString(16).padStart(4, '0')}-0000-1000-8000-00805f9b34fb`;
+    }
+    /**
+     * Convert a string of hex into a DataView of raw bytes.
+     * Note: characters other than [0-9a-fA-F] are ignored
+     * @param hex string of values, e.g. "00 01 02" or "000102"
+     * @return DataView of raw bytes
+     */
+    function hexStringToDataView(hex) {
+        const bin = [];
+        let i, c, isEmpty = 1, buffer = 0;
+        for (i = 0; i < hex.length; i++) {
+            c = hex.charCodeAt(i);
+            if ((c > 47 && c < 58) || (c > 64 && c < 71) || (c > 96 && c < 103)) {
+                buffer = (buffer << 4) ^ ((c > 64 ? c + 9 : c) & 15);
+                if ((isEmpty ^= 1)) {
+                    bin.push(buffer & 0xff);
+                }
+            }
+        }
+        return numbersToDataView(bin);
+    }
+    function dataViewToHexString(value) {
+        return dataViewToNumbers(value)
+            .map((n) => {
+            let s = n.toString(16);
+            if (s.length == 1) {
+                s = '0' + s;
+            }
+            return s;
+        })
+            .join('');
+    }
+    function webUUIDToString(uuid) {
+        if (typeof uuid === 'string') {
+            return uuid;
+        }
+        else if (typeof uuid === 'number') {
+            return numberToUUID(uuid);
+        }
+        else {
+            throw new Error('Invalid UUID');
+        }
+    }
+    function mapToObject(map) {
+        const obj = {};
+        if (!map) {
+            return undefined;
+        }
+        map.forEach((value, key) => {
+            obj[key.toString()] = value;
+        });
+        return obj;
+    }
+    /**
+     * Convert Data or Uint8Array to Uint8Array.
+     * @param value DataView, Uint8Array, or undefined
+     * @return Uint8Array or undefined
+     */
+    function toUint8Array(value) {
+        if (value === undefined) {
+            return undefined;
+        }
+        if (typeof value === 'string') {
+            const dataView = hexStringToDataView(value);
+            return new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
+        }
+        if (value instanceof DataView) {
+            return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+        }
+        return value; // Already Uint8Array
+    }
+    /**
+     * Convert Data, Uint8Array, or string to hex string.
+     * @param value DataView, Uint8Array, or undefined
+     * @return hex string or undefined
+     */
+    function toHexString(value) {
+        if (value === undefined) {
+            return undefined;
+        }
+        if (value instanceof DataView) {
+            return dataViewToHexString(value);
+        }
+        // Uint8Array
+        return dataViewToHexString(new DataView(value.buffer, value.byteOffset, value.byteLength));
+    }
+
+    const BluetoothLe = core.registerPlugin('BluetoothLe', {
+        web: () => Promise.resolve().then(function () { return web; }).then((m) => new m.BluetoothLeWeb()),
+    });
+
+    const makeQueue = () => {
+        let currentTask = Promise.resolve();
+        // create a new promise so that errors can be bubbled
+        // up to the caller without being caught by the queue
+        return (fn) => new Promise((resolve, reject) => {
+            currentTask = currentTask
+                .then(() => fn())
+                .then(resolve)
+                .catch(reject);
+        });
+    };
+    function getQueue(enabled) {
+        if (enabled) {
+            return makeQueue();
+        }
+        return (fn) => fn();
+    }
+
+    function parseUUID(uuid) {
+        if (typeof uuid !== 'string') {
+            throw new Error(`Invalid UUID type ${typeof uuid}. Expected string.`);
+        }
+        uuid = uuid.toLowerCase();
+        const is128BitUuid = uuid.search(/^[0-9a-f]{8}\b-[0-9a-f]{4}\b-[0-9a-f]{4}\b-[0-9a-f]{4}\b-[0-9a-f]{12}$/) >= 0;
+        if (!is128BitUuid) {
+            throw new Error(`Invalid UUID format ${uuid}. Expected 128 bit string (e.g. "0000180d-0000-1000-8000-00805f9b34fb").`);
+        }
+        return uuid;
+    }
+
+    class BleClientClass {
+        constructor() {
+            this.scanListener = null;
+            this.eventListeners = new Map();
+            this.queue = getQueue(true);
+        }
+        enableQueue() {
+            this.queue = getQueue(true);
+        }
+        disableQueue() {
+            this.queue = getQueue(false);
+        }
+        async initialize(options) {
+            await this.queue(async () => {
+                await BluetoothLe.initialize(options);
+            });
+        }
+        async isEnabled() {
+            const enabled = await this.queue(async () => {
+                const result = await BluetoothLe.isEnabled();
+                return result.value;
+            });
+            return enabled;
+        }
+        async requestEnable() {
+            await this.queue(async () => {
+                await BluetoothLe.requestEnable();
+            });
+        }
+        async enable() {
+            await this.queue(async () => {
+                await BluetoothLe.enable();
+            });
+        }
+        async disable() {
+            await this.queue(async () => {
+                await BluetoothLe.disable();
+            });
+        }
+        async startEnabledNotifications(callback) {
+            await this.queue(async () => {
+                var _a;
+                const key = `onEnabledChanged`;
+                await ((_a = this.eventListeners.get(key)) === null || _a === undefined ? undefined : _a.remove());
+                const listener = await BluetoothLe.addListener(key, (result) => {
+                    callback(result.value);
+                });
+                this.eventListeners.set(key, listener);
+                await BluetoothLe.startEnabledNotifications();
+            });
+        }
+        async stopEnabledNotifications() {
+            await this.queue(async () => {
+                var _a;
+                const key = `onEnabledChanged`;
+                await ((_a = this.eventListeners.get(key)) === null || _a === undefined ? undefined : _a.remove());
+                this.eventListeners.delete(key);
+                await BluetoothLe.stopEnabledNotifications();
+            });
+        }
+        async isLocationEnabled() {
+            const enabled = await this.queue(async () => {
+                const result = await BluetoothLe.isLocationEnabled();
+                return result.value;
+            });
+            return enabled;
+        }
+        async openLocationSettings() {
+            await this.queue(async () => {
+                await BluetoothLe.openLocationSettings();
+            });
+        }
+        async openBluetoothSettings() {
+            await this.queue(async () => {
+                await BluetoothLe.openBluetoothSettings();
+            });
+        }
+        async openAppSettings() {
+            await this.queue(async () => {
+                await BluetoothLe.openAppSettings();
+            });
+        }
+        async setDisplayStrings(displayStrings) {
+            await this.queue(async () => {
+                await BluetoothLe.setDisplayStrings(displayStrings);
+            });
+        }
+        async requestDevice(options) {
+            options = options ? this.validateRequestBleDeviceOptions(options) : undefined;
+            const result = await this.queue(async () => {
+                const device = await BluetoothLe.requestDevice(options);
+                return device;
+            });
+            return result;
+        }
+        async requestLEScan(options, callback) {
+            options = this.validateRequestBleDeviceOptions(options);
+            await this.queue(async () => {
+                var _a;
+                await ((_a = this.scanListener) === null || _a === undefined ? undefined : _a.remove());
+                this.scanListener = await BluetoothLe.addListener('onScanResult', (resultInternal) => {
+                    const result = Object.assign(Object.assign({}, resultInternal), { manufacturerData: this.convertObject(resultInternal.manufacturerData), serviceData: this.convertObject(resultInternal.serviceData), rawAdvertisement: resultInternal.rawAdvertisement
+                            ? this.convertValue(resultInternal.rawAdvertisement)
+                            : undefined });
+                    callback(result);
+                });
+                await BluetoothLe.requestLEScan(options);
+            });
+        }
+        async stopLEScan() {
+            await this.queue(async () => {
+                var _a;
+                await ((_a = this.scanListener) === null || _a === undefined ? undefined : _a.remove());
+                this.scanListener = null;
+                await BluetoothLe.stopLEScan();
+            });
+        }
+        async getDevices(deviceIds) {
+            if (!Array.isArray(deviceIds)) {
+                throw new Error('deviceIds must be an array');
+            }
+            return this.queue(async () => {
+                const result = await BluetoothLe.getDevices({ deviceIds });
+                return result.devices;
+            });
+        }
+        async getConnectedDevices(services) {
+            if (!Array.isArray(services)) {
+                throw new Error('services must be an array');
+            }
+            services = services.map(parseUUID);
+            return this.queue(async () => {
+                const result = await BluetoothLe.getConnectedDevices({ services });
+                return result.devices;
+            });
+        }
+        async getBondedDevices() {
+            return this.queue(async () => {
+                const result = await BluetoothLe.getBondedDevices();
+                return result.devices;
+            });
+        }
+        async connect(deviceId, onDisconnect, options) {
+            await this.queue(async () => {
+                var _a;
+                if (onDisconnect) {
+                    const key = `disconnected|${deviceId}`;
+                    await ((_a = this.eventListeners.get(key)) === null || _a === undefined ? undefined : _a.remove());
+                    const listener = await BluetoothLe.addListener(key, () => {
+                        onDisconnect(deviceId);
+                    });
+                    this.eventListeners.set(key, listener);
+                }
+                await BluetoothLe.connect(Object.assign({ deviceId }, options));
+            });
+        }
+        async createBond(deviceId, options) {
+            await this.queue(async () => {
+                await BluetoothLe.createBond(Object.assign({ deviceId }, options));
+            });
+        }
+        async isBonded(deviceId) {
+            const isBonded = await this.queue(async () => {
+                const result = await BluetoothLe.isBonded({ deviceId });
+                return result.value;
+            });
+            return isBonded;
+        }
+        async disconnect(deviceId) {
+            await this.queue(async () => {
+                await BluetoothLe.disconnect({ deviceId });
+            });
+        }
+        async getServices(deviceId) {
+            const services = await this.queue(async () => {
+                const result = await BluetoothLe.getServices({ deviceId });
+                return result.services;
+            });
+            return services;
+        }
+        async discoverServices(deviceId) {
+            await this.queue(async () => {
+                await BluetoothLe.discoverServices({ deviceId });
+            });
+        }
+        async getMtu(deviceId) {
+            const value = await this.queue(async () => {
+                const result = await BluetoothLe.getMtu({ deviceId });
+                return result.value;
+            });
+            return value;
+        }
+        async requestConnectionPriority(deviceId, connectionPriority) {
+            await this.queue(async () => {
+                await BluetoothLe.requestConnectionPriority({ deviceId, connectionPriority });
+            });
+        }
+        async readRssi(deviceId) {
+            const value = await this.queue(async () => {
+                const result = await BluetoothLe.readRssi({ deviceId });
+                return parseFloat(result.value);
+            });
+            return value;
+        }
+        async read(deviceId, service, characteristic, options) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            const value = await this.queue(async () => {
+                const result = await BluetoothLe.read(Object.assign({ deviceId,
+                    service,
+                    characteristic }, options));
+                return this.convertValue(result.value);
+            });
+            return value;
+        }
+        async write(deviceId, service, characteristic, value, options) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            return this.queue(async () => {
+                if (!(value === null || value === undefined ? undefined : value.buffer)) {
+                    throw new Error('Invalid data.');
+                }
+                let writeValue = value;
+                if (core.Capacitor.getPlatform() !== 'web') {
+                    // on native we can only write strings
+                    writeValue = dataViewToHexString(value);
+                }
+                await BluetoothLe.write(Object.assign({ deviceId,
+                    service,
+                    characteristic, value: writeValue }, options));
+            });
+        }
+        async writeWithoutResponse(deviceId, service, characteristic, value, options) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            await this.queue(async () => {
+                if (!(value === null || value === undefined ? undefined : value.buffer)) {
+                    throw new Error('Invalid data.');
+                }
+                let writeValue = value;
+                if (core.Capacitor.getPlatform() !== 'web') {
+                    // on native we can only write strings
+                    writeValue = dataViewToHexString(value);
+                }
+                await BluetoothLe.writeWithoutResponse(Object.assign({ deviceId,
+                    service,
+                    characteristic, value: writeValue }, options));
+            });
+        }
+        async readDescriptor(deviceId, service, characteristic, descriptor, options) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            descriptor = parseUUID(descriptor);
+            const value = await this.queue(async () => {
+                const result = await BluetoothLe.readDescriptor(Object.assign({ deviceId,
+                    service,
+                    characteristic,
+                    descriptor }, options));
+                return this.convertValue(result.value);
+            });
+            return value;
+        }
+        async writeDescriptor(deviceId, service, characteristic, descriptor, value, options) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            descriptor = parseUUID(descriptor);
+            return this.queue(async () => {
+                if (!(value === null || value === undefined ? undefined : value.buffer)) {
+                    throw new Error('Invalid data.');
+                }
+                let writeValue = value;
+                if (core.Capacitor.getPlatform() !== 'web') {
+                    // on native we can only write strings
+                    writeValue = dataViewToHexString(value);
+                }
+                await BluetoothLe.writeDescriptor(Object.assign({ deviceId,
+                    service,
+                    characteristic,
+                    descriptor, value: writeValue }, options));
+            });
+        }
+        async startNotifications(deviceId, service, characteristic, callback, options) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            await this.queue(async () => {
+                var _a;
+                const key = `notification|${deviceId}|${service}|${characteristic}`;
+                await ((_a = this.eventListeners.get(key)) === null || _a === undefined ? undefined : _a.remove());
+                const listener = await BluetoothLe.addListener(key, (event) => {
+                    callback(this.convertValue(event === null || event === undefined ? undefined : event.value));
+                });
+                this.eventListeners.set(key, listener);
+                await BluetoothLe.startNotifications(Object.assign({ deviceId,
+                    service,
+                    characteristic }, options));
+            });
+        }
+        async stopNotifications(deviceId, service, characteristic) {
+            service = parseUUID(service);
+            characteristic = parseUUID(characteristic);
+            await this.queue(async () => {
+                var _a;
+                const key = `notification|${deviceId}|${service}|${characteristic}`;
+                await ((_a = this.eventListeners.get(key)) === null || _a === undefined ? undefined : _a.remove());
+                this.eventListeners.delete(key);
+                await BluetoothLe.stopNotifications({
+                    deviceId,
+                    service,
+                    characteristic,
+                });
+            });
+        }
+        validateRequestBleDeviceOptions(options) {
+            options = Object.assign({}, options);
+            if (options.services) {
+                options.services = options.services.map(parseUUID);
+            }
+            if (options.optionalServices) {
+                options.optionalServices = options.optionalServices.map(parseUUID);
+            }
+            if (options.serviceData && core.Capacitor.getPlatform() !== 'web') {
+                // Native platforms: convert to hex strings
+                options.serviceData = options.serviceData.map((filter) => (Object.assign(Object.assign({}, filter), { serviceUuid: parseUUID(filter.serviceUuid), dataPrefix: toHexString(filter.dataPrefix), mask: toHexString(filter.mask) })));
+            }
+            if (options.manufacturerData) {
+                if (core.Capacitor.getPlatform() !== 'web') {
+                    // Native platforms: convert to hex strings
+                    options.manufacturerData = options.manufacturerData.map((filter) => (Object.assign(Object.assign({}, filter), { dataPrefix: toHexString(filter.dataPrefix), mask: toHexString(filter.mask) })));
+                }
+                else {
+                    // Web platform: convert to Uint8Array for Web Bluetooth API
+                    options.manufacturerData = options.manufacturerData.map((filter) => (Object.assign(Object.assign({}, filter), { dataPrefix: toUint8Array(filter.dataPrefix), mask: toUint8Array(filter.mask) })));
+                }
+            }
+            return options;
+        }
+        convertValue(value) {
+            if (typeof value === 'string') {
+                return hexStringToDataView(value);
+            }
+            else if (value === undefined) {
+                return new DataView(new ArrayBuffer(0));
+            }
+            return value;
+        }
+        convertObject(obj) {
+            if (obj === undefined) {
+                return undefined;
+            }
+            const result = {};
+            for (const key of Object.keys(obj)) {
+                result[key] = this.convertValue(obj[key]);
+            }
+            return result;
+        }
+    }
+    const BleClient = new BleClientClass();
+
+    async function runWithTimeout(promise, time, exception) {
+        let timer;
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => {
+                timer = setTimeout(() => reject(exception), time);
+            }),
+        ]).finally(() => clearTimeout(timer));
+    }
+
+    class BluetoothLeWeb extends core.WebPlugin {
+        constructor() {
+            super(...arguments);
+            this.deviceMap = new Map();
+            this.discoveredDevices = new Map();
+            this.scan = null;
+            this.DEFAULT_CONNECTION_TIMEOUT = 10000;
+            this.onAdvertisementReceivedCallback = this.onAdvertisementReceived.bind(this);
+            this.onDisconnectedCallback = this.onDisconnected.bind(this);
+            this.onCharacteristicValueChangedCallback = this.onCharacteristicValueChanged.bind(this);
+        }
+        async initialize() {
+            if (typeof navigator === 'undefined' || !navigator.bluetooth) {
+                throw this.unavailable('Web Bluetooth API not available in this browser.');
+            }
+            const isAvailable = await navigator.bluetooth.getAvailability();
+            if (!isAvailable) {
+                throw this.unavailable('No Bluetooth radio available.');
+            }
+        }
+        async isEnabled() {
+            // not available on web
+            return { value: true };
+        }
+        async requestEnable() {
+            throw this.unavailable('requestEnable is not available on web.');
+        }
+        async enable() {
+            throw this.unavailable('enable is not available on web.');
+        }
+        async disable() {
+            throw this.unavailable('disable is not available on web.');
+        }
+        async startEnabledNotifications() {
+            // not available on web
+        }
+        async stopEnabledNotifications() {
+            // not available on web
+        }
+        async isLocationEnabled() {
+            throw this.unavailable('isLocationEnabled is not available on web.');
+        }
+        async openLocationSettings() {
+            throw this.unavailable('openLocationSettings is not available on web.');
+        }
+        async openBluetoothSettings() {
+            throw this.unavailable('openBluetoothSettings is not available on web.');
+        }
+        async openAppSettings() {
+            throw this.unavailable('openAppSettings is not available on web.');
+        }
+        async setDisplayStrings() {
+            // not available on web
+        }
+        async requestDevice(options) {
+            const filters = this.getFilters(options);
+            const device = await navigator.bluetooth.requestDevice({
+                filters: filters.length ? filters : undefined,
+                optionalServices: options === null || options === undefined ? undefined : options.optionalServices,
+                acceptAllDevices: filters.length === 0,
+            });
+            this.deviceMap.set(device.id, device);
+            const bleDevice = this.getBleDevice(device);
+            return bleDevice;
+        }
+        async requestLEScan(options) {
+            this.requestBleDeviceOptions = options;
+            const filters = this.getFilters(options);
+            await this.stopLEScan();
+            this.discoveredDevices = new Map();
+            navigator.bluetooth.removeEventListener('advertisementreceived', this.onAdvertisementReceivedCallback);
+            navigator.bluetooth.addEventListener('advertisementreceived', this.onAdvertisementReceivedCallback);
+            this.scan = await navigator.bluetooth.requestLEScan({
+                filters: filters.length ? filters : undefined,
+                acceptAllAdvertisements: filters.length === 0,
+                keepRepeatedDevices: options === null || options === undefined ? undefined : options.allowDuplicates,
+            });
+        }
+        onAdvertisementReceived(event) {
+            var _a, _b, _c;
+            const deviceId = event.device.id;
+            this.deviceMap.set(deviceId, event.device);
+            const isNew = !this.discoveredDevices.has(deviceId);
+            // Apply service data filtering client-side (Web Bluetooth API doesn't support it in scan filters)
+            if (((_a = this.requestBleDeviceOptions) === null || _a === undefined ? undefined : _a.serviceData) && !this.matchesServiceDataFilter(event)) {
+                return;
+            }
+            if (isNew || ((_b = this.requestBleDeviceOptions) === null || _b === undefined ? undefined : _b.allowDuplicates)) {
+                this.discoveredDevices.set(deviceId, true);
+                const device = this.getBleDevice(event.device);
+                const result = {
+                    device,
+                    localName: device.name,
+                    rssi: event.rssi,
+                    txPower: event.txPower,
+                    manufacturerData: mapToObject(event.manufacturerData),
+                    serviceData: mapToObject(event.serviceData),
+                    uuids: (_c = event.uuids) === null || _c === undefined ? undefined : _c.map(webUUIDToString),
+                };
+                this.notifyListeners('onScanResult', result);
+            }
+        }
+        async stopLEScan() {
+            var _a;
+            if ((_a = this.scan) === null || _a === undefined ? undefined : _a.active) {
+                this.scan.stop();
+            }
+            this.scan = null;
+        }
+        async getDevices(options) {
+            const devices = await navigator.bluetooth.getDevices();
+            const bleDevices = devices
+                .filter((device) => options.deviceIds.includes(device.id))
+                .map((device) => {
+                this.deviceMap.set(device.id, device);
+                const bleDevice = this.getBleDevice(device);
+                return bleDevice;
+            });
+            return { devices: bleDevices };
+        }
+        async getConnectedDevices(_options) {
+            const devices = await navigator.bluetooth.getDevices();
+            const bleDevices = devices
+                .filter((device) => {
+                var _a;
+                return (_a = device.gatt) === null || _a === undefined ? undefined : _a.connected;
+            })
+                .map((device) => {
+                this.deviceMap.set(device.id, device);
+                const bleDevice = this.getBleDevice(device);
+                return bleDevice;
+            });
+            return { devices: bleDevices };
+        }
+        async getBondedDevices() {
+            return {};
+        }
+        async connect(options) {
+            var _a, _b;
+            const device = this.getDeviceFromMap(options.deviceId);
+            device.removeEventListener('gattserverdisconnected', this.onDisconnectedCallback);
+            device.addEventListener('gattserverdisconnected', this.onDisconnectedCallback);
+            const timeoutError = Symbol();
+            if (device.gatt === undefined) {
+                throw new Error('No gatt server available.');
+            }
+            try {
+                const timeout = (_a = options.timeout) !== null && _a !== void 0 ? _a : this.DEFAULT_CONNECTION_TIMEOUT;
+                await runWithTimeout(device.gatt.connect(), timeout, timeoutError);
+            }
+            catch (error) {
+                // cancel pending connect call, does not work yet in chromium because of a bug:
+                // https://bugs.chromium.org/p/chromium/issues/detail?id=684073
+                await ((_b = device.gatt) === null || _b === undefined ? undefined : _b.disconnect());
+                if (error === timeoutError) {
+                    throw new Error('Connection timeout');
+                }
+                else {
+                    throw error;
+                }
+            }
+        }
+        onDisconnected(event) {
+            const deviceId = event.target.id;
+            const key = `disconnected|${deviceId}`;
+            this.notifyListeners(key, null);
+        }
+        async createBond(_options) {
+            throw this.unavailable('createBond is not available on web.');
+        }
+        async isBonded(_options) {
+            throw this.unavailable('isBonded is not available on web.');
+        }
+        async disconnect(options) {
+            var _a;
+            (_a = this.getDeviceFromMap(options.deviceId).gatt) === null || _a === undefined ? undefined : _a.disconnect();
+        }
+        async getServices(options) {
+            var _a, _b;
+            const services = (_b = (await ((_a = this.getDeviceFromMap(options.deviceId).gatt) === null || _a === undefined ? undefined : _a.getPrimaryServices()))) !== null && _b !== undefined ? _b : [];
+            const bleServices = [];
+            for (const service of services) {
+                const characteristics = await service.getCharacteristics();
+                const bleCharacteristics = [];
+                for (const characteristic of characteristics) {
+                    bleCharacteristics.push({
+                        uuid: characteristic.uuid,
+                        properties: this.getProperties(characteristic),
+                        descriptors: await this.getDescriptors(characteristic),
+                    });
+                }
+                bleServices.push({ uuid: service.uuid, characteristics: bleCharacteristics });
+            }
+            return { services: bleServices };
+        }
+        async getDescriptors(characteristic) {
+            try {
+                const descriptors = await characteristic.getDescriptors();
+                return descriptors.map((descriptor) => ({
+                    uuid: descriptor.uuid,
+                }));
+            }
+            catch (_a) {
+                return [];
+            }
+        }
+        getProperties(characteristic) {
+            return {
+                broadcast: characteristic.properties.broadcast,
+                read: characteristic.properties.read,
+                writeWithoutResponse: characteristic.properties.writeWithoutResponse,
+                write: characteristic.properties.write,
+                notify: characteristic.properties.notify,
+                indicate: characteristic.properties.indicate,
+                authenticatedSignedWrites: characteristic.properties.authenticatedSignedWrites,
+                reliableWrite: characteristic.properties.reliableWrite,
+                writableAuxiliaries: characteristic.properties.writableAuxiliaries,
+            };
+        }
+        async getCharacteristic(options) {
+            var _a;
+            const service = await ((_a = this.getDeviceFromMap(options.deviceId).gatt) === null || _a === undefined ? undefined : _a.getPrimaryService(options === null || options === undefined ? undefined : options.service));
+            return service === null || service === undefined ? undefined : service.getCharacteristic(options === null || options === undefined ? undefined : options.characteristic);
+        }
+        async getDescriptor(options) {
+            const characteristic = await this.getCharacteristic(options);
+            return characteristic === null || characteristic === undefined ? undefined : characteristic.getDescriptor(options === null || options === undefined ? undefined : options.descriptor);
+        }
+        async discoverServices(_options) {
+            throw this.unavailable('discoverServices is not available on web.');
+        }
+        async getMtu(_options) {
+            throw this.unavailable('getMtu is not available on web.');
+        }
+        async requestConnectionPriority(_options) {
+            throw this.unavailable('requestConnectionPriority is not available on web.');
+        }
+        async readRssi(_options) {
+            throw this.unavailable('readRssi is not available on web.');
+        }
+        async read(options) {
+            const characteristic = await this.getCharacteristic(options);
+            const value = await (characteristic === null || characteristic === undefined ? undefined : characteristic.readValue());
+            return { value };
+        }
+        async write(options) {
+            const characteristic = await this.getCharacteristic(options);
+            let dataView;
+            if (typeof options.value === 'string') {
+                dataView = hexStringToDataView(options.value);
+            }
+            else {
+                dataView = options.value;
+            }
+            await (characteristic === null || characteristic === undefined ? undefined : characteristic.writeValueWithResponse(dataView));
+        }
+        async writeWithoutResponse(options) {
+            const characteristic = await this.getCharacteristic(options);
+            let dataView;
+            if (typeof options.value === 'string') {
+                dataView = hexStringToDataView(options.value);
+            }
+            else {
+                dataView = options.value;
+            }
+            await (characteristic === null || characteristic === undefined ? undefined : characteristic.writeValueWithoutResponse(dataView));
+        }
+        async readDescriptor(options) {
+            const descriptor = await this.getDescriptor(options);
+            const value = await (descriptor === null || descriptor === undefined ? undefined : descriptor.readValue());
+            return { value };
+        }
+        async writeDescriptor(options) {
+            const descriptor = await this.getDescriptor(options);
+            let dataView;
+            if (typeof options.value === 'string') {
+                dataView = hexStringToDataView(options.value);
+            }
+            else {
+                dataView = options.value;
+            }
+            await (descriptor === null || descriptor === undefined ? undefined : descriptor.writeValue(dataView));
+        }
+        async startNotifications(options) {
+            const characteristic = await this.getCharacteristic(options);
+            characteristic === null || characteristic === undefined ? undefined : characteristic.removeEventListener('characteristicvaluechanged', this.onCharacteristicValueChangedCallback);
+            characteristic === null || characteristic === undefined ? undefined : characteristic.addEventListener('characteristicvaluechanged', this.onCharacteristicValueChangedCallback);
+            await (characteristic === null || characteristic === undefined ? undefined : characteristic.startNotifications());
+        }
+        onCharacteristicValueChanged(event) {
+            var _a, _b;
+            const characteristic = event.target;
+            const key = `notification|${(_a = characteristic.service) === null || _a === undefined ? undefined : _a.device.id}|${(_b = characteristic.service) === null || _b === undefined ? undefined : _b.uuid}|${characteristic.uuid}`;
+            this.notifyListeners(key, {
+                value: characteristic.value,
+            });
+        }
+        async stopNotifications(options) {
+            const characteristic = await this.getCharacteristic(options);
+            await (characteristic === null || characteristic === undefined ? undefined : characteristic.stopNotifications());
+        }
+        getFilters(options) {
+            var _a, _b;
+            const filters = [];
+            for (const service of (_a = options === null || options === undefined ? undefined : options.services) !== null && _a !== undefined ? _a : []) {
+                filters.push({
+                    services: [service],
+                    name: options === null || options === undefined ? undefined : options.name,
+                    namePrefix: options === null || options === undefined ? undefined : options.namePrefix,
+                });
+            }
+            if (((options === null || options === undefined ? undefined : options.name) || (options === null || options === undefined ? undefined : options.namePrefix)) && filters.length === 0) {
+                filters.push({
+                    name: options.name,
+                    namePrefix: options.namePrefix,
+                });
+            }
+            for (const manufacturerData of (_b = options === null || options === undefined ? undefined : options.manufacturerData) !== null && _b !== undefined ? _b : []) {
+                // Cast to any to avoid type incompatibility - conversion is handled in bleClient.ts
+                filters.push({
+                    manufacturerData: [manufacturerData],
+                });
+            }
+            // Note: Web Bluetooth API does not support service data in scan filters.
+            // Service data filtering will be done client-side in onAdvertisementReceived.
+            // We still accept serviceData in options for API consistency across platforms.
+            return filters;
+        }
+        matchesServiceDataFilter(event) {
+            var _a;
+            const filters = (_a = this.requestBleDeviceOptions) === null || _a === undefined ? undefined : _a.serviceData;
+            if (!filters || filters.length === 0) {
+                return true; // No filters, accept all
+            }
+            if (!event.serviceData) {
+                return false; // No service data in advertisement
+            }
+            // Check if any filter matches (OR logic)
+            for (const filter of filters) {
+                const serviceData = event.serviceData.get(filter.serviceUuid);
+                if (!serviceData) {
+                    continue; // This filter doesn't match, try next
+                }
+                // If we have service data for this UUID
+                if (!filter.dataPrefix) {
+                    return true; // Filter matched by service UUID alone
+                }
+                // Check data prefix (DataView on web)
+                const data = new Uint8Array(serviceData.buffer);
+                const prefixView = filter.dataPrefix;
+                if (data.length < prefixView.byteLength) {
+                    continue; // Data too short
+                }
+                // Apply mask if provided
+                if (filter.mask) {
+                    const maskView = filter.mask;
+                    let matches = true;
+                    for (let i = 0; i < prefixView.byteLength; i++) {
+                        if ((data[i] & maskView.getUint8(i)) !== (prefixView.getUint8(i) & maskView.getUint8(i))) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (matches) {
+                        return true;
+                    }
+                }
+                else {
+                    // Check if data starts with prefix
+                    let matches = true;
+                    for (let i = 0; i < prefixView.byteLength; i++) {
+                        if (data[i] !== prefixView.getUint8(i)) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (matches) {
+                        return true;
+                    }
+                }
+            }
+            return false; // No filter matched
+        }
+        getDeviceFromMap(deviceId) {
+            const device = this.deviceMap.get(deviceId);
+            if (device === undefined) {
+                throw new Error('Device not found. Call "requestDevice", "requestLEScan" or "getDevices" first.');
+            }
+            return device;
+        }
+        getBleDevice(device) {
+            var _a;
+            const bleDevice = {
+                deviceId: device.id,
+                // use undefined instead of null if name is not available
+                name: (_a = device.name) !== null && _a !== undefined ? _a : undefined,
+            };
+            return bleDevice;
+        }
+    }
+
+    var web = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        BluetoothLeWeb: BluetoothLeWeb
+    });
+
+    exports.BleClient = BleClient;
+    exports.BluetoothLe = BluetoothLe;
+    exports.dataViewToHexString = dataViewToHexString;
+    exports.dataViewToNumbers = dataViewToNumbers;
+    exports.dataViewToText = dataViewToText;
+    exports.hexStringToDataView = hexStringToDataView;
+    exports.mapToObject = mapToObject;
+    exports.numberToUUID = numberToUUID;
+    exports.numbersToDataView = numbersToDataView;
+    exports.textToDataView = textToDataView;
+    exports.toHexString = toHexString;
+    exports.toUint8Array = toUint8Array;
+    exports.webUUIDToString = webUUIDToString;
+
+    return exports;
+
+})({}, capacitorExports);
+//# sourceMappingURL=plugin.js.map

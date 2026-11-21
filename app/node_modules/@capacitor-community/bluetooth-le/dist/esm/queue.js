@@ -1,0 +1,18 @@
+const makeQueue = () => {
+    let currentTask = Promise.resolve();
+    // create a new promise so that errors can be bubbled
+    // up to the caller without being caught by the queue
+    return (fn) => new Promise((resolve, reject) => {
+        currentTask = currentTask
+            .then(() => fn())
+            .then(resolve)
+            .catch(reject);
+    });
+};
+export function getQueue(enabled) {
+    if (enabled) {
+        return makeQueue();
+    }
+    return (fn) => fn();
+}
+//# sourceMappingURL=queue.js.map

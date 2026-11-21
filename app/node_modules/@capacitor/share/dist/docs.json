@@ -1,0 +1,168 @@
+{
+  "api": {
+    "name": "SharePlugin",
+    "slug": "shareplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "canShare",
+        "signature": "() => Promise<CanShareResult>",
+        "parameters": [],
+        "returns": "Promise<CanShareResult>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.1.0"
+          }
+        ],
+        "docs": "Check if sharing is supported.",
+        "complexTypes": [
+          "CanShareResult"
+        ],
+        "slug": "canshare"
+      },
+      {
+        "name": "share",
+        "signature": "(options: ShareOptions) => Promise<ShareResult>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "ShareOptions"
+          }
+        ],
+        "returns": "Promise<ShareResult>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Show a Share modal for sharing content with other apps",
+        "complexTypes": [
+          "ShareResult",
+          "ShareOptions"
+        ],
+        "slug": "share"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [
+    {
+      "name": "CanShareResult",
+      "slug": "canshareresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "value",
+          "tags": [
+            {
+              "text": "1.1.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Whether sharing is supported or not.",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "ShareResult",
+      "slug": "shareresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "activityType",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Identifier of the app that received the share action.\nCan be an empty string in some cases.\n\nOn web it will be undefined.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "ShareOptions",
+      "slug": "shareoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "title",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Set a title for any message. This will be the subject\nif sharing to email",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "text",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Set some text to share",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "url",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Set a URL to share, can be http, https or file:// URL",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "files",
+          "tags": [
+            {
+              "text": "4.1.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Array of file:// URLs of the files to be shared.\nOnly supported on iOS and Android.",
+          "complexTypes": [],
+          "type": "string[] | undefined"
+        },
+        {
+          "name": "dialogTitle",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Set a title for the share modal.\nThis option is only supported on Android.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    }
+  ],
+  "enums": [],
+  "typeAliases": [],
+  "pluginConfigs": []
+}

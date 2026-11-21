@@ -1,0 +1,563 @@
+{
+  "api": {
+    "name": "StatusBarPlugin",
+    "slug": "statusbarplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "setStyle",
+        "signature": "(options: StyleOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "StyleOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Set the current style of the status bar.",
+        "complexTypes": [
+          "StyleOptions"
+        ],
+        "slug": "setstyle"
+      },
+      {
+        "name": "setBackgroundColor",
+        "signature": "(options: BackgroundColorOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "BackgroundColorOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Set the background color of the status bar.",
+        "complexTypes": [
+          "BackgroundColorOptions"
+        ],
+        "slug": "setbackgroundcolor"
+      },
+      {
+        "name": "show",
+        "signature": "(options?: AnimationOptions | undefined) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "AnimationOptions | undefined"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Show the status bar.\nOn iOS, if the status bar is initially hidden and the initial style is set to\n`UIStatusBarStyleLightContent`, first show call might present a glitch on the\nanimation showing the text as dark and then transition to light. It's recommended\nto use `Animation.None` as the animation on the first call.",
+        "complexTypes": [
+          "AnimationOptions"
+        ],
+        "slug": "show"
+      },
+      {
+        "name": "hide",
+        "signature": "(options?: AnimationOptions | undefined) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "AnimationOptions | undefined"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Hide the status bar.",
+        "complexTypes": [
+          "AnimationOptions"
+        ],
+        "slug": "hide"
+      },
+      {
+        "name": "getInfo",
+        "signature": "() => Promise<StatusBarInfo>",
+        "parameters": [],
+        "returns": "Promise<StatusBarInfo>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Get info about the current state of the status bar.",
+        "complexTypes": [
+          "StatusBarInfo"
+        ],
+        "slug": "getinfo"
+      },
+      {
+        "name": "setOverlaysWebView",
+        "signature": "(options: SetOverlaysWebViewOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "SetOverlaysWebViewOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "1.0.0"
+          }
+        ],
+        "docs": "Set whether or not the status bar should overlay the webview to allow usage\nof the space underneath it.",
+        "complexTypes": [
+          "SetOverlaysWebViewOptions"
+        ],
+        "slug": "setoverlayswebview"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'statusBarVisibilityChanged', listenerFunc: VisibilityChangeListener) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'statusBarVisibilityChanged'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "VisibilityChangeListener"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "7.0.0"
+          }
+        ],
+        "docs": "Listen for status bar visibility changes.\nFired when hide or show methods get called.",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "VisibilityChangeListener"
+        ],
+        "slug": "addlistenerstatusbarvisibilitychanged-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'statusBarOverlayChanged', listenerFunc: OverlayChangeListener) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'statusBarOverlayChanged'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "OverlayChangeListener"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [
+          {
+            "name": "since",
+            "text": "7.0.0"
+          }
+        ],
+        "docs": "Listen for status bar overlay changes.\nFired when setOverlaysWebView gets called.",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "OverlayChangeListener"
+        ],
+        "slug": "addlistenerstatusbaroverlaychanged-"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [
+    {
+      "name": "StyleOptions",
+      "slug": "styleoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "style",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Style of the text of the status bar.",
+          "complexTypes": [
+            "Style"
+          ],
+          "type": "Style"
+        }
+      ]
+    },
+    {
+      "name": "BackgroundColorOptions",
+      "slug": "backgroundcoloroptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "color",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "A hex color to which the status bar color is set.",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "AnimationOptions",
+      "slug": "animationoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "animation",
+          "tags": [
+            {
+              "text": "Animation.Fade",
+              "name": "default"
+            },
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "The type of status bar animation used when showing or hiding.\n\nThis option is only supported on iOS.",
+          "complexTypes": [
+            "Animation"
+          ],
+          "type": "Animation"
+        }
+      ]
+    },
+    {
+      "name": "StatusBarInfo",
+      "slug": "statusbarinfo",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "visible",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Whether the status bar is visible or not.",
+          "complexTypes": [],
+          "type": "boolean"
+        },
+        {
+          "name": "style",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "The current status bar style.",
+          "complexTypes": [
+            "Style"
+          ],
+          "type": "Style"
+        },
+        {
+          "name": "color",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "The current status bar color.",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "overlays",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Whether the status bar is overlaid or not.",
+          "complexTypes": [],
+          "type": "boolean"
+        },
+        {
+          "name": "height",
+          "tags": [
+            {
+              "text": "7.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "The height of the status bar.",
+          "complexTypes": [],
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "name": "SetOverlaysWebViewOptions",
+      "slug": "setoverlayswebviewoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "overlay",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Whether to overlay the status bar or not.",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "PluginListenerHandle",
+      "slug": "pluginlistenerhandle",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "remove",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "() => Promise<void>"
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "Style",
+      "slug": "style",
+      "members": [
+        {
+          "name": "Dark",
+          "value": "'DARK'",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Light text for dark backgrounds."
+        },
+        {
+          "name": "Light",
+          "value": "'LIGHT'",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Dark text for light backgrounds."
+        },
+        {
+          "name": "Default",
+          "value": "'DEFAULT'",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "The style is based on the device appearance.\nIf the device is using Dark mode, the statusbar text will be light.\nIf the device is using Light mode, the statusbar text will be dark."
+        }
+      ]
+    },
+    {
+      "name": "Animation",
+      "slug": "animation",
+      "members": [
+        {
+          "name": "None",
+          "value": "'NONE'",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "No animation during show/hide."
+        },
+        {
+          "name": "Slide",
+          "value": "'SLIDE'",
+          "tags": [
+            {
+              "text": "Use Animation.Fade or Animation.None instead.",
+              "name": "deprecated"
+            },
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Slide animation during show/hide.\nIt doesn't work on iOS 15+."
+        },
+        {
+          "name": "Fade",
+          "value": "'FADE'",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            }
+          ],
+          "docs": "Fade animation during show/hide."
+        }
+      ]
+    }
+  ],
+  "typeAliases": [
+    {
+      "name": "VisibilityChangeListener",
+      "slug": "visibilitychangelistener",
+      "docs": "",
+      "types": [
+        {
+          "text": "(info: StatusBarInfo): void",
+          "complexTypes": [
+            "StatusBarInfo"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OverlayChangeListener",
+      "slug": "overlaychangelistener",
+      "docs": "",
+      "types": [
+        {
+          "text": "(info: StatusBarInfo): void",
+          "complexTypes": [
+            "StatusBarInfo"
+          ]
+        }
+      ]
+    }
+  ],
+  "pluginConfigs": [
+    {
+      "name": "StatusBar",
+      "slug": "statusbar",
+      "properties": [
+        {
+          "name": "overlaysWebView",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            },
+            {
+              "text": "true",
+              "name": "default"
+            },
+            {
+              "text": "false",
+              "name": "example"
+            }
+          ],
+          "docs": "Whether the statusbar is overlaid or not.\nFor applications targeting Android 15, this property has no effect unless\nthe property windowOptOutEdgeToEdgeEnforcement is added to the application layout file.\nOtherwise, the application assumes always overlays as true.\nMore details in https://developer.android.com/reference/android/R.attr#windowOptOutEdgeToEdgeEnforcement",
+          "complexTypes": [],
+          "type": "boolean | undefined"
+        },
+        {
+          "name": "style",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            },
+            {
+              "text": "default",
+              "name": "default"
+            },
+            {
+              "text": "\"DARK\"",
+              "name": "example"
+            }
+          ],
+          "docs": "Style of the text of the status bar.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "backgroundColor",
+          "tags": [
+            {
+              "text": "1.0.0",
+              "name": "since"
+            },
+            {
+              "text": "#000000",
+              "name": "default"
+            },
+            {
+              "text": "\"#ffffffff\"",
+              "name": "example"
+            }
+          ],
+          "docs": "Color of the background of the statusbar in hex format, #RRGGBB.\nDoesn't work if `overlaysWebView` is true.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ],
+      "docs": "These config values are available:"
+    }
+  ]
+}

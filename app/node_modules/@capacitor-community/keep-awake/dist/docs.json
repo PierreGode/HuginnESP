@@ -1,0 +1,92 @@
+{
+  "api": {
+    "name": "KeepAwakePlugin",
+    "slug": "keepawakeplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "keepAwake",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "Prevent the device from dimming the screen.",
+        "complexTypes": [],
+        "slug": "keepawake"
+      },
+      {
+        "name": "allowSleep",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "Allow the device to dim the screen.",
+        "complexTypes": [],
+        "slug": "allowsleep"
+      },
+      {
+        "name": "isSupported",
+        "signature": "() => Promise<IsSupportedResult>",
+        "parameters": [],
+        "returns": "Promise<IsSupportedResult>",
+        "tags": [],
+        "docs": "Whether keep awake is supported or not.",
+        "complexTypes": [
+          "IsSupportedResult"
+        ],
+        "slug": "issupported"
+      },
+      {
+        "name": "isKeptAwake",
+        "signature": "() => Promise<IsKeptAwakeResult>",
+        "parameters": [],
+        "returns": "Promise<IsKeptAwakeResult>",
+        "tags": [],
+        "docs": "Check if the device is kept awake.",
+        "complexTypes": [
+          "IsKeptAwakeResult"
+        ],
+        "slug": "iskeptawake"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [
+    {
+      "name": "IsSupportedResult",
+      "slug": "issupportedresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "isSupported",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "IsKeptAwakeResult",
+      "slug": "iskeptawakeresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "isKeptAwake",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    }
+  ],
+  "enums": [],
+  "typeAliases": [],
+  "pluginConfigs": []
+}

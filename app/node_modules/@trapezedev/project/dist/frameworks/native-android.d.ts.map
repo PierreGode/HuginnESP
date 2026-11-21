@@ -1,0 +1,1 @@
+{"version":3,"file":"native-android.d.ts","sourceRoot":"","sources":["../../src/frameworks/native-android.ts"],"names":[],"mappings":"AAGA,OAAO,EAAE,SAAS,EAAE,MAAM,GAAG,CAAC;AAC9B,OAAO,EAAE,aAAa,EAAE,MAAM,YAAY,CAAC;AAE3C,qBAAa,sBAAuB,SAAQ,SAAS;;WAKtC,YAAY,CAAC,OAAO,EAAE,aAAa;CAWjD"}

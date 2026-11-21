@@ -1,0 +1,1 @@
+export declare function runWithTimeout(promise: Promise<unknown>, time: number, exception: symbol): Promise<unknown>;

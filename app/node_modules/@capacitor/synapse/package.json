@@ -1,0 +1,42 @@
+{
+  "name": "@capacitor/synapse",
+  "version": "1.0.4",
+  "main": "./dist/synapse.cjs",
+  "module": "./dist/synapse.mjs",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/synapse.mjs",
+      "require": "./dist/synapse.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "lint": "npm run eslint && npm run prettier -- --check",
+    "fmt": "npm run eslint -- --fix && npm run prettier -- --write",
+    "eslint": "eslint",
+    "prettier": "prettier \"src/**/*.{css,html,ts,js,java}\"",
+    "swiftlint": "node-swiftlint",
+    "build": "npm run clean && vite build",
+    "clean": "rimraf ./dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@eslint/js": "^8.56.0",
+    "@rollup/wasm-node": "~4.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "~3.3.3",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "vite-plugin-dts": "^3.9.1"
+  }
+}

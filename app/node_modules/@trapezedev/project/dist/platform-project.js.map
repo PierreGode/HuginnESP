@@ -1,0 +1,1 @@
+{"version":3,"file":"platform-project.js","sourceRoot":"","sources":["../src/platform-project.ts"],"names":[],"mappings":";;;AAEA,MAAa,eAAe;IAE1B,YAAsB,OAAsB;QAAtB,YAAO,GAAP,OAAO,CAAe;QADpC,UAAK,GAAiB,IAAI,CAAC;IACY,CAAC;IAChD,QAAQ;QACN,OAAO,IAAI,CAAC,KAAK,CAAC;IACpB,CAAC;IACD,QAAQ,CAAC,KAAY;QACnB,IAAI,CAAC,KAAK,GAAG,KAAK,CAAC;IACrB,CAAC;CACF;AATD,0CASC"}

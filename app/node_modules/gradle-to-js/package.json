@@ -1,0 +1,39 @@
+{
+  "name": "gradle-to-js",
+  "version": "2.0.1",
+  "description": "A quick & dirty Gradle build file to JavaScript object parser",
+  "main": "lib/parser.js",
+  "bin": {
+    "gradle-to-js": "./cli.js"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ninetwozero/gradle-to-js.git"
+  },
+  "keywords": [
+    "gradle",
+    "javascript",
+    "parsing"
+  ],
+  "files": [
+    "lib/",
+    "cli.js"
+  ],
+  "author": "Karl Lindmark",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/ninetwozero/gradle-to-js/issues"
+  },
+  "homepage": "https://github.com/ninetwozero/gradle-to-js#readme",
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.2.0",
+    "multiline": "^2.0.0"
+  },
+  "dependencies": {
+    "lodash.merge": "^4.6.2"
+  }
+}

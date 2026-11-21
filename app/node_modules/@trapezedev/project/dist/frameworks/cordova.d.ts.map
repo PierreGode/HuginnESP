@@ -1,0 +1,1 @@
+{"version":3,"file":"cordova.d.ts","sourceRoot":"","sources":["../../src/frameworks/cordova.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,SAAS,EAAE,MAAM,GAAG,CAAC;AAC9B,OAAO,EAAE,aAAa,EAAE,MAAM,YAAY,CAAC;AAE3C,qBAAa,gBAAiB,SAAQ,SAAS;;WAKhC,YAAY,CAAC,OAAO,EAAE,aAAa;CAajD"}

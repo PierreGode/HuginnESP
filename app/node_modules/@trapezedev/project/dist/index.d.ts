@@ -1,0 +1,14 @@
+export * from './definitions';
+export * from './frameworks';
+export * from './config';
+export * from './logger';
+export * from './project';
+export * from './xml';
+export * from './json';
+export * from './plist';
+export * from './properties';
+export * from './strings';
+export * from './xcconfig';
+export * from './vfs';
+export * from './util/plist';
+//# sourceMappingURL=index.d.ts.map
