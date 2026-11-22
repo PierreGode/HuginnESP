@@ -1,5 +1,12 @@
 # HuginnESP
 
+> **This repository is legacy.** HuginnESP development continues in a private
+> repository. This repo stays to serve the **web flasher**,
+> <https://pierregode.github.io/HuginnESP/>, which always carries the latest
+> firmware: the private pipeline builds it and starts this repo's
+> `deploy-flasher.yml`, which only downloads that build and publishes it. The
+> code and documentation below are kept as they were and are no longer built.
+
 WiFi & BLE wardriving firmware for ESP32. The device performs the radio scanning and pushes a live stream of detections out over USB serial — any host can consume the stream. The reference consumer is [Ragnar](https://github.com/PierreGode/Ragnar)'s wardriving engine, but the protocol is plain newline-delimited JSON so anything that can read a serial port will work.
 
 ---
