@@ -30,6 +30,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # Without it the download below can't see the private repo and only
+      # says "Artifact not found".
+      - name: Check the secret HUGINN_CI_TOKEN is set
+        env:
+          TOKEN: ${{ secrets.HUGINN_CI_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Secret HUGINN_CI_TOKEN is not set in this repo (Settings -> Secrets and variables -> Actions). It needs Actions read on PierreGode/HuginnESPpriv."
+            exit 1
+          fi
+
       - name: Download the site built in HuginnESPpriv
         uses: actions/download-artifact@v4
         with:
