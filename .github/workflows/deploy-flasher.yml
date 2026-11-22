@@ -1,9 +1,21 @@
-name: Build firmware and deploy web flasher
+name: Deploy web flasher
+
+# This repo only serves the web flasher (https://pierregode.github.io/HuginnESP/).
+# The firmware is built in the private repo PierreGode/HuginnESPpriv: its
+# pipeline uploads the staged site as the artifact "flasher-site" and starts
+# this workflow with its run id. This workflow downloads that artifact and
+# deploys it to GitHub Pages; it builds nothing. The code in this repo is
+# legacy and no longer built.
+#
+# Secret HUGINN_CI_TOKEN: a fine-grained token with Actions read on
+# PierreGode/HuginnESPpriv (to download the artifact).
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: HuginnESPpriv workflow run that built the site
+        required: true
 
 permissions:
   contents: read
@@ -12,148 +24,30 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - name: Download the site built in HuginnESPpriv
+        uses: actions/download-artifact@v4
         with:
-          python-version: '3.11'
+          name: flasher-site
+          path: site
+          repository: PierreGode/HuginnESPpriv
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.HUGINN_CI_TOKEN }}
 
-      - name: Cache PlatformIO & Arduino cores
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.platformio
-            ~/.arduino15
-            ~/.cache/pip
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: pio-${{ runner.os }}-
-
-      - name: Install PlatformIO
+      # The site must be the flasher and nothing else.
+      - name: Check the site
         run: |
-          python -m pip install --upgrade pip
-          pip install platformio esptool
-
-      - name: Build firmware (ESP32-S3)
-        run: pio run -e esp32s3box
-
-      - name: Build firmware (ESP32-C5)
-        run: pio run -e esp32c5
-
-      - name: Build firmware (ESP32-C5-WROOM-1 / WROOM-1U)
-        run: pio run -e esp32c5-wroom
-
-      - name: Build firmware (LilyGO T-Dongle-C5)
-        run: pio run -e tdongle-c5
-
-      # ── Seeed XIAO ESP32-C5 — separate arduino-cli pipeline ──
-      # The XIAO_ESP32C5 board definition only exists in the official
-      # Espressif esp32 core, so this target is built with arduino-cli
-      # rather than PlatformIO/pioarduino.
-      - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$PWD/bin" >> $GITHUB_PATH
-
-      - name: Install ESP32 Arduino core
-        run: |
-          arduino-cli config init --overwrite
-          arduino-cli config add board_manager.additional_urls \
-            "https://espressif.github.io/arduino-esp32/package_esp32_dev_index.json"
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32
-
-      - name: Build firmware (Seeed XIAO ESP32-C5)
-        run: bash scripts/build-xiao.sh
-
-      - name: Stage site
-        run: |
-          mkdir -p site/firmware
-          cp -r docs/. site/
-
-          BOOT_APP0=$(find ~/.platformio/packages -name boot_app0.bin | head -n 1)
-          if [ -z "$BOOT_APP0" ]; then
-            echo "boot_app0.bin not found"; exit 1
+          find site -type f | sort
+          test -f site/index.html && test -f site/manifest.json && test -f site/version.json
+          if find site -type f ! \( -name '*.html' -o -name '*.js' -o -name '*.json' -o -name '*.bin' -o -name '*.png' -o -name '*.svg' -o -name '*.ico' \) | grep -q .; then
+            echo "Unexpected file type in the site - refusing to deploy"; exit 1
           fi
-
-          # ---- ESP32-S3 merged image ----
-          S3_DIR=.pio/build/esp32s3box
-          python -m esptool --chip esp32s3 merge_bin \
-            --output site/firmware/huginn-esp32s3.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            0x0000   "$S3_DIR/bootloader.bin" \
-            0x8000   "$S3_DIR/partitions.bin" \
-            0xe000   "$BOOT_APP0" \
-            0x10000  "$S3_DIR/firmware.bin"
-
-          # ---- ESP32-C5 merged image ----
-          # ESP32-C5 second-stage bootloader lives at flash 0x2000 (not 0x0
-          # like S3/C6). --target-offset 0x0 pads the merged file from 0 so
-          # the manifest can still flash it at offset 0.
-          C5_DIR=.pio/build/esp32c5
-          python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-esp32c5.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 16MB \
-            --target-offset 0x0 \
-            0x2000   "$C5_DIR/bootloader.bin" \
-            0x8000   "$C5_DIR/partitions.bin" \
-            0xe000   "$BOOT_APP0" \
-            0x10000  "$C5_DIR/firmware.bin"
-
-          # ---- Generic ESP32-C5-WROOM-1 / WROOM-1U merged image ----
-          # 8 MB layout so one image boots on N8/N16 (and 32 MB) modules.
-          WROOM_DIR=.pio/build/esp32c5-wroom
-          python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-esp32c5-wroom.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            --target-offset 0x0 \
-            0x2000   "$WROOM_DIR/bootloader.bin" \
-            0x8000   "$WROOM_DIR/partitions.bin" \
-            0xe000   "$BOOT_APP0" \
-            0x10000  "$WROOM_DIR/firmware.bin"
-
-          # ---- LilyGO T-Dongle-C5 merged image (16 MB flash, 160x80 display) ----
-          TDONGLE_DIR=.pio/build/tdongle-c5
-          python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-tdongle-c5.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 16MB \
-            --target-offset 0x0 \
-            0x2000   "$TDONGLE_DIR/bootloader.bin" \
-            0x8000   "$TDONGLE_DIR/partitions.bin" \
-            0xe000   "$BOOT_APP0" \
-            0x10000  "$TDONGLE_DIR/firmware.bin"
-
-          # ---- Seeed XIAO ESP32-C5 merged image (arduino-cli build) ----
-          # 8 MB flash; C5 bootloader at 0x2000 like the Waveshare C5 above.
-          # boot_app0.bin comes from the arduino15 esp32 core package.
-          XIAO_DIR=build-sketch/HuginnESP/build/esp32.esp32.XIAO_ESP32C5
-          BOOT_APP0_ARD=$(find ~/.arduino15/packages/esp32 -name boot_app0.bin | head -n 1)
-          if [ -z "$BOOT_APP0_ARD" ]; then
-            echo "arduino15 boot_app0.bin not found"; exit 1
-          fi
-          python -m esptool --chip esp32c5 merge_bin \
-            --output site/firmware/huginn-xiao-esp32c5.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            --target-offset 0x0 \
-            0x2000   "$XIAO_DIR/HuginnESP.ino.bootloader.bin" \
-            0x8000   "$XIAO_DIR/HuginnESP.ino.partitions.bin" \
-            0xe000   "$BOOT_APP0_ARD" \
-            0x10000  "$XIAO_DIR/HuginnESP.ino.bin"
-
-          VERSION="$(date -u +%-m.%-d).${GITHUB_SHA::7}"
-          echo "Version: $VERSION"
-
-          for m in manifest-esp32s3.json manifest-esp32c5.json manifest-esp32c5-wroom.json manifest-tdongle-c5.json manifest-xiao-esp32c5.json; do
-            jq --arg v "$VERSION" '.version = $v' "site/$m" > "site/$m.tmp"
-            mv "site/$m.tmp" "site/$m"
-          done
-
-          echo "{\"build\":\"$VERSION\",\"sha\":\"${GITHUB_SHA::7}\",\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > site/version.json
+          cat site/version.json
 
       - uses: actions/configure-pages@v5
 
