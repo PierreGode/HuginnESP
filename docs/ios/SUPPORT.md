@@ -1,6 +1,6 @@
-# HuginnESP for iPhone — Support
+# HuginnESP — Support
 
-HuginnESP is the iPhone companion app for the Huginn, an open-hardware ESP32 Wi-Fi and Bluetooth survey device. The Huginn does the radio scanning; the app connects to it over Bluetooth LE, shows what it finds, records it with your position and lets you export the result.
+HuginnESP is the iPhone and Android companion app for the Huginn, an open-hardware ESP32 Wi-Fi and Bluetooth survey device. The Huginn does the radio scanning; the app connects to it over Bluetooth LE, shows what it finds, records it with your position and lets you export the result.
 
 ## Getting started
 
@@ -15,7 +15,7 @@ On the Live tab, under **No Huginn yet?**, tap **Try the demo Huginn**. It plays
 
 ## Common questions
 
-**The app can't find my Huginn.** Make sure Bluetooth is on and that HuginnESP is allowed to use it (Settings → HuginnESP → Bluetooth). Keep the Huginn close to the phone and check it is running the latest firmware from the web flasher. The Huginn doesn't need pairing in iOS Settings.
+**The app can't find my Huginn.** Make sure Bluetooth is on and that HuginnESP is allowed to use it (iPhone: Settings → HuginnESP → Bluetooth; Android: Settings → Apps → HuginnESP → Permissions → Nearby devices). Keep the Huginn close to the phone and check it is running the latest firmware from the web flasher. The Huginn doesn't need pairing in the phone's Bluetooth settings.
 
 **How do I upload to WiGLE, WDGWars or Wardrift?** Enter your existing account under Settings → Upload accounts, then upload a drive from the Drives tab. Uploading is optional; the app works fully without it.
 
